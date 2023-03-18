@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>html\netAmermaid.ico</ApplicationIcon>
+    <Title>$(AssemblyName)</Title>
+    <Authors>Holger Schmidt</Authors>
+    <PackageProjectUrl>https://github.com/h0lg/netAmermaid</PackageProjectUrl>
+    <Description>Creates an HTML app to generate Mermaid class diagrams from the types contained in a .Net assembly.</Description>
+    <RepositoryUrl>https://github.com/h0lg/netAmermaid</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="html\**" />
+    <EmbeddedResource Remove="html\**" />
+    <None Remove="html\**" />
+    <Content Include="html\netAmermaid.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="html\styles.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="html\template.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="html\script.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="System.CodeDom" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="html\html.njsproj">
+      <ReferenceOutputAssembly>False</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

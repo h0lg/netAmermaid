@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>{{assembly}} class diagram - netAmermaid</title>
+    <link rel="icon" type="image/x-icon" href="netAmermaid.ico" />
+    <link rel="stylesheet" href="styles.css" type="text/css" />
+</head>
+<body class="container">
+
+    <!-- for animated background -->
+    <ul class="bubbles container">
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+    </ul>
+
+    <div id="content" class="flx">
+        <form id="filter" class="flx col open">
+            <div class="flx">
+                <label for="typeFilter" class="grow">Select the types to include:</label>
+                <button type="button" id="info-toggle" title="toggle help">ℹ</button>
+            </div>
+
+            <div id="info" class="scndry vertical collapse">
+                <p>
+                    Did you notice that the <b>type filter</b> is focused right off the bat?
+                    This means you can <b>simply start typing</b> the first few letters of the type
+                    you want to use as a starting point for your diagram and
+                    <b>hit [Enter] to render</b> it.
+                </p>
+                <p>
+                    After rendering, you can <b>explore the domain along type relations</b>
+                    by clicking related types on the diagram to toggle them in the filter and trigger re-rendering.
+                </p>
+                <p>
+                    Don't forget that you can use <b>[Shift] to range-select</b>
+                    and <b>[Ctrl] to add to or subtract from your selection</b>.
+                </p>
+                <p>
+                    Lastly, note that the diagram has a <b>layout direction</b>,
+                    i.e. <b>rendering depends on the order of your selection</b>!
+                    Use <b>[Alt] + [Arrow Up|Down] to move</b> selected types.
+                </p>
+                <p>
+                    This class diagrammer was generated using <a href="{{repoUrl}}">netAmermaid</a>.
+                </p>
+            </div>
+
+            <select multiple id="typeFilter" class="grow"></select>
+
+            <p class="spaced aligned flx">
+                <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
+                    <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />
+                    <label for="show-base-types">show base types</label>
+                </span>
+                <button type="button" id="restore-last-rendered" hidden
+                        title="restore last rendered type selection (in case you lose it by mis-clicking)">↶</button>
+            </p>
+
+            <fieldset id="direction" class="scndry flx" title="[Ctrl + arrow keys] You'll want to change this depending on your screen or printer and the size of the diagram.">
+                <legend>layout direction</legend>
+                <input type="radio" name="direction" value="RL" id="dir-rl" />
+                <label for="dir-rl">↞</label>
+                <input type="radio" name="direction" value="LR" id="dir-lr" checked />
+                <label for="dir-lr">↠</label>
+                <input type="radio" name="direction" value="TB" id="dir-tb" />
+                <label for="dir-tb">↡</label>
+                <input type="radio" name="direction" value="BT" id="dir-bt" />
+                <label for="dir-bt">↟</label>
+            </fieldset>
+
+            <div id="actions" class="flx spaced">
+                <button type="submit" id="render" disabled title="Hitting [Enter] while focusing the side bar will do it, as will changing the layout direction or clicking on types on the diagram.">🖌 Render the diagram</button>
+                <button type="button" id="exportOptions-toggle" hidden title="toggle export options">🝀</button>
+            </div>
+
+            <div id="exportOptions" class="scndry vertical collapse aligned spaced flx col">
+                <button type="button" id="copy" title="[Ctrl + C] Copies a base-64 encoded PNG version of the diagram into your clipboard for you to paste directly into a messenger, word- or image processor.">📋 Copy image to clipboard</button>
+
+                <div class="flx" title="Note that you can also use your browser's Print function [Ctrl + P] to export to PDF or paper or split up the diagram into multiple pages.">
+                    <button type="button" id="save" data-assembly="{{assembly}}" title="[Ctrl + S]">💾 Save</button>
+                    <label>as</label>
+                    <input type="radio" name="saveAs" value="svg" id="saveAs-svg" checked />
+                    <label for="saveAs-svg">svg</label>
+                    <input type="radio" name="saveAs" value="png" id="saveAs-png" />
+                    <label for="saveAs-png">png</label>
+                </div>
+
+                <div id="dimensions" class="vertical collapse">
+                    <fieldset title="Applied when saving and in (unscalable) image format. Note these settings indirectly determine the resolution.">
+                        <legend>png dimensions</legend>
+
+                        <div class="flx">
+                            <input type="radio" name="dimension" value="auto" id="dimension-current" checked />
+                            <label for="dimension-current">current</label>
+                            <input type="radio" name="dimension" value="scale" id="dimension-scale" />
+                            <label for="dimension-scale">scale to fixed</label>
+                        </div>
+
+                        <div id="scale-controls" class="flx aligned">
+                            <input type="radio" name="scale" value="width" id="scale-width" checked disabled />
+                            <label for="scale-width">width</label>
+                            <input type="radio" name="scale" value="height" id="scale-height" disabled />
+                            <label for="scale-height">height</label>
+                            <div class="scale-size flx aligned">
+                                <label for="scale-size">of</label>
+                                <input type="text" id="scale-size" value="1080" disabled />
+                                <label for="scale-size">px</label>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </form>
+
+        <button type="button" id="filter-toggle" title="toggle side bar [Ctrl + B]">↹</button>
+
+        <div id="output" class="grow"></div>
+    </div>
+    <div id="toaster" class="flx col"></div>
+
+    <script id="typeDefinitionsByNamespace" type="application/json">{{typeDefinitionsByNamespace}}</script>
+    <script type="module">{{script}}</script>
+</body>
+</html>

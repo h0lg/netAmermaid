@@ -1,0 +1,8 @@
+/.vs
+/obj
+/bin
+/html/node_modules
+/html/bin
+/html/obj
+/html/styles.css
+*.user
