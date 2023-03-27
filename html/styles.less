@@ -28,6 +28,10 @@
     color: whitesmoke;
 }
 
+.colorLabelWithDocs() {
+    color: darkgoldenrod;
+}
+
 .darkenBg() {
     background-color: #0003;
 }
@@ -261,15 +265,8 @@ select {
             border-radius: 3px;
         }
 
-        foreignObject {
-            overflow: visible;
-
-            .edgeLabel span.edgeLabel[title]::before {
-                content: '💬';
-                position: absolute;
-                right: -1em;
-                top: -1em;
-            }
+        foreignObject .edgeLabel span.edgeLabel[title] {
+            .colorLabelWithDocs;
         }
     }
 
@@ -287,12 +284,8 @@ select {
             }
         }
 
-        g.label foreignObject {
-            overflow: visible;
-
-            .nodeLabel[title]::after {
-                content: '💬';
-            }
+        g.label foreignObject .nodeLabel[title] {
+            .colorLabelWithDocs;
         }
     }
 }
