@@ -295,6 +295,54 @@ const mermaidExtensions = (() => {
     };
 })();
 
+const state = (() => {
+    function updateQueryString(href, params) {
+        // see https://developer.mozilla.org/en-US/docs/Web/API/URL
+        const url = new URL(href), search = url.searchParams;
+
+        for (const [name, value] of Object.entries(params)) {
+            //see https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+            if (value === null || value === undefined || value === '') search.delete(name);
+            else if (Array.isArray(value)) {
+                search.delete(name);
+                for (let item of value) search.append(name, item);
+            }
+            else search.set(name, value);
+        }
+
+        url.search = search.toString();
+        return url.href;
+    }
+
+    window.onpopstate = async event => {
+        const data = event.state;
+        typeFilter.setSelected(data.types);
+        await render(true);
+    };
+
+    return {
+        update: () => {
+            const types = Object.keys(typeFilter.getSelected()),
+                direction = layoutDirection.get(),
+                data = { types, direction };
+
+            history.pushState(data, '', updateQueryString(location.href, data));
+        },
+        restore: async () => {
+            const search = new URLSearchParams(location.search),
+                types = search.getAll('types');
+
+            if (types.length > 0) {
+                typeFilter.setSelected(types);
+                const direction = search.get('direction');
+
+                if (direction) layoutDirection.set(direction); // renders
+                else await render(true);
+            }
+        }
+    };
+})();
+
 const typeFilter = (() => {
     const select = getById('typeFilter'),
         renderBtn = getById('render'),
@@ -412,12 +460,12 @@ const layoutDirection = (() => {
         get: () => radios.getValue(inputName),
         set: (value, event) => {
             radios.setChecked(inputName, value);
-            event.preventDefault();
+            if (event !== undefined) event.preventDefault();
         }
     };
 })();
 
-const render = async () => {
+const render = async isRestoringState => {
     const { diagram, detailedTypes, xmlDocs } = mermaidExtensions.processTypes(
         typeFilter.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
 
@@ -443,6 +491,7 @@ const render = async () => {
 
     lastRenderedTypes.set(detailedTypes);
     exportOptions.enable(detailedTypes.length > 0);
+    if (!isRestoringState) state.update();
 };
 
 const filterSidebar = (() => {
@@ -712,3 +761,4 @@ document.onkeydown = async (event) => {
 
 mermaidExtensions.init({ startOnLoad: false }); // initializes mermaid as well
 typeFilter.focus(); // focus type filter initially to enable keyboard input
+await state.restore();
