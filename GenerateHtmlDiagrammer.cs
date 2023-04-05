@@ -24,16 +24,35 @@ namespace NetAmermaid
             + $". Set to make displaying repetitive and noisy inheritance details on your diagrams optional via a control in the {diagrammer}.")]
         public string? BaseTypes { get; set; }
 
+        [Option('n', "strip-namespaces", HelpText = "Space-separated namespace names that are removed for brevity when displaying member details." +
+            " Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.")]
+        public IEnumerable<string>? StrippedNamespaces { get; set; }
+
+        [Option('d', "docs", HelpText = $"The path or file:// URI of the XML file containing the {assembly}'s documentation comments." +
+            $" You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the {assembly}.")]
+        public string? XmlDocs { get; set; }
+
         public void Run()
         {
             var assemblyPath = GetPath(Assembly);
             var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
-            var types = FilterTypes(System.Reflection.Assembly.LoadFrom(assemblyPath));
-            var diagrammer = new MermaidClassDiagrammer();
+            var assembly = System.Reflection.Assembly.LoadFrom(assemblyPath);
+            var types = FilterTypes(assembly);
+
+            #region XML docs
+            var stripNamespaces = StrippedNamespaces?.ToArray();
+
+            var xmlDocs = XmlDocs == null ? new XmlDocumentationFile(assembly, stripNamespaces)
+                : new XmlDocumentationFile(GetPath(XmlDocs), stripNamespaces);
+
+            if (!xmlDocs.HasEntries) Console.WriteLine("No XML documentation found. Continuing without.");
+            #endregion
+
+            var diagrammer = new MermaidClassDiagrammer(xmlDocs);
 
             // convert collections to dictionaries for easier access in JS
             var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
-                ns => ns.Types.ToDictionary(t => t.Name, t => new { t.DiagramDefinition, t.InheritedMembersByDeclaringType }));
+                ns => ns.Types.ToDictionary(t => t.Name, t => new { t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
 
             var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions { WriteIndented = true });
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");

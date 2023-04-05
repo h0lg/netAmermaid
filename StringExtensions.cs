@@ -2,6 +2,11 @@
 {
     internal static class StringExtensions
     {
+        /// <summary>Replaces all consecutive horizontal white space characters in
+        /// <paramref name="input"/> with <paramref name="normalizeTo"/> while leaving line breaks intact.</summary>
+        internal static string NormalizeHorizontalWhiteSpace(this string input, string normalizeTo = " ")
+            => System.Text.RegularExpressions.Regex.Replace(input, @"[ \t]+", normalizeTo);
+
         /// <summary>Replaces all occurances of <paramref name="oldValues"/> in
         /// <paramref name="input"/> with <paramref name="newValue"/>.</summary>
         internal static string ReplaceAll(this string input, IEnumerable<string> oldValues, string newValue)

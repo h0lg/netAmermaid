@@ -11,28 +11,34 @@ namespace NetAmermaid
             | BindingFlags.Public | BindingFlags.NonPublic;
 
         private readonly TypeFormatter typeFormatter;
+        private readonly XmlDocumentationFile xmlDocs;
 
-        public MermaidClassDiagrammer() => typeFormatter = new TypeFormatter("c#",
-            getName: type =>
-            {
-                if (string.IsNullOrEmpty(type.Namespace)) return type.Name; // no need to continue
+        public MermaidClassDiagrammer(XmlDocumentationFile xmlDocs)
+        {
+            this.xmlDocs = xmlDocs;
 
-                /* prevent generic expressions that lead to parser errors;
-                 * more than one generice type arg is currently not supported,
-                 * see https://github.com/mermaid-js/mermaid/issues/3188 */
-                if (type.IsGenericType && (type.GenericTypeArguments.Length > 1
-                    || type.FullName == null)) // workaround e.g. for parameter or return types for methods with a type parameter
-                    return type.Name.Substring(0, type.Name.IndexOf('`')) + $"~{type.GenericTypeArguments.Length}~";
+            typeFormatter = new TypeFormatter("c#",
+                getName: type =>
+                {
+                    if (string.IsNullOrEmpty(type.Namespace)) return type.Name; // no need to continue
 
-                var name = type.FullName ?? type.Name;
+                    /* prevent generic expressions that lead to parser errors;
+                     * more than one generice type arg is currently not supported,
+                     * see https://github.com/mermaid-js/mermaid/issues/3188 */
+                    if (type.IsGenericType && (type.GenericTypeArguments.Length > 1
+                        || type.FullName == null)) // workaround e.g. for parameter or return types for methods with a type parameter
+                        return type.Name.Substring(0, type.Name.IndexOf('`')) + $"~{type.GenericTypeArguments.Length}~";
 
-                /* strip namespace of type completely, but only first occurance;
-                 * method will be called for generic type arguments */
-                var start = name.IndexOf(type.Namespace);
-                return start < 0 ? name : name.Remove(start, type.Namespace.Length + 1);
-            },
-            postProcess: name => name.Replace('.', '_') // for nested types
-                .ReplaceAll(new[] { "<", ">" }, "~")); // translate generic type expressions
+                    var name = type.FullName ?? type.Name;
+
+                    /* strip namespace of type completely, but only first occurance;
+                     * method will be called for generic type arguments */
+                    var start = name.IndexOf(type.Namespace);
+                    return start < 0 ? name : name.Remove(start, type.Namespace.Length + 1);
+                },
+                postProcess: name => name.Replace('.', '_') // for nested types
+                    .ReplaceAll(new[] { "<", ">" }, "~")); // translate generic type expressions
+        }
 
         public IEnumerable<Namespace> GetDefinitions(Type[] types)
             => types.GroupBy(t => t.Namespace).Select(ns => new Namespace
@@ -44,14 +50,23 @@ namespace NetAmermaid
         private Namespace.Type GetEnumDefinition(Type type)
         {
             var name = GetName(type);
+            var fields = type.GetFields().Where(f => !f.IsSpecialName).ToArray();
+            var fieldDefinitions = fields.Select(f => f.Name).Join(Environment.NewLine + "    ", pad: true);
 
-            var fields = type.GetFields().Where(f => !f.IsSpecialName)
-                .Select(f => f.Name).Join(Environment.NewLine + "    ", pad: true);
+            Dictionary<string, string>? docs = default;
+
+            if (xmlDocs.HasEntries)
+            {
+                docs = new Dictionary<string, string>();
+                AddXmlDocEntry(docs, xmlDocs.ForType(type));
+                foreach (var field in fields) AddXmlDocEntry(docs, xmlDocs.ForField(field), field);
+            }
 
             return new Namespace.Type
             {
                 Name = name,
-                DiagramDefinition = $"class {name} {{{fields}<<Enumeration>>}}",
+                DiagramDefinition = $"class {name} {{{fieldDefinitions}<<Enumeration>>}}",
+                XmlDocs = docs?.Keys.Any() == true ? docs : default
             };
         }
 
@@ -106,6 +121,19 @@ namespace NetAmermaid
                 .Join(Environment.NewLine);
             #endregion
 
+            #region gather XML documentation for the type and displayed members
+            Dictionary<string, string>? docs = default;
+
+            if (xmlDocs.HasEntries)
+            {
+                docs = new Dictionary<string, string>();
+                AddXmlDocEntry(docs, xmlDocs.ForType(type));
+                foreach (var m in methods) AddXmlDocEntry(docs, xmlDocs.ForMethod(m), m);
+                foreach (var p in properties) AddXmlDocEntry(docs, xmlDocs.ForProperty(p), p);
+                foreach (var f in fields) AddXmlDocEntry(docs, xmlDocs.ForField(f), f);
+            }
+            #endregion
+
             #region build diagram definitions for inherited members by declaring type
             var explicitTypePrefix = typeName + " : ";
 
@@ -125,7 +153,8 @@ namespace NetAmermaid
             {
                 Name = typeName,
                 DiagramDefinition = $"class {typeName} {{{body}}}" + twoLineBreaks + relationships,
-                InheritedMembersByDeclaringType = inheritedMembersByType
+                InheritedMembersByDeclaringType = inheritedMembersByType,
+                XmlDocs = docs?.Keys.Any() == true ? docs : default
             };
         }
 
@@ -154,6 +183,11 @@ namespace NetAmermaid
 
         private string FormatField(FieldInfo field) => $"{GetAccessibility(field)}{GetName(field.FieldType)} {field.Name}";
         private string GetName(Type type) => typeFormatter.GetName(type); // to reduce noise
+
+        private static void AddXmlDocEntry(Dictionary<string, string> docs, string? doc, MemberInfo? member = null)
+        {
+            if (!string.IsNullOrEmpty(doc)) docs[member?.Name ?? string.Empty] = doc;
+        }
 
         // see https://stackoverflow.com/a/16024302 for accessibility modifier flags
         private char GetAccessibility(MethodInfo m) => m.IsPublic ? '+' : m.IsFamily ? '#' : m.IsAssembly ? '~' : '-';
@@ -194,6 +228,10 @@ namespace NetAmermaid
                 /// <summary>Contains the mermaid class diagram definitions for inherited members by their <see cref="MemberInfo.DeclaringType"/>.
                 /// for the consumer to choose which of them to display in an inheritance scenario.</summary>
                 public IDictionary<string, string>? InheritedMembersByDeclaringType { get; set; }
+
+                /// <summary>Contains the XML documentation comments for this type (using a <see cref="string.Empty"/> key)
+                /// and its members, if available.</summary>
+                public IDictionary<string, string>? XmlDocs { get; set; }
             }
         }
     }

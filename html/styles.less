@@ -260,6 +260,17 @@ select {
         .edgeLabel {
             border-radius: 3px;
         }
+
+        foreignObject {
+            overflow: visible;
+
+            .edgeLabel span.edgeLabel[title]::before {
+                content: '💬';
+                position: absolute;
+                right: -1em;
+                top: -1em;
+            }
+        }
     }
 
     path.relation {
@@ -273,6 +284,14 @@ select {
             > rect {
                 rx: 5px;
                 ry: 5px;
+            }
+        }
+
+        g.label foreignObject {
+            overflow: visible;
+
+            .nodeLabel[title]::after {
+                content: '💬';
             }
         }
     }

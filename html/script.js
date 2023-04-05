@@ -64,7 +64,141 @@ const notify = (() => {
 })();
 
 const mermaidExtensions = (() => {
+
+    const logLevel = (() => {
+        /* int indexes as well as string values can identify a valid log level;
+            see log levels and logger definition at https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/logger.ts .
+            Note the names correspond to console output methods https://developer.mozilla.org/en-US/docs/Web/API/console .*/
+        const names = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+
+        let requested; // the log level of the in-coming config or the default
+
+        return {
+            setRequested: level => {
+                requested = Number.isInteger(level) && 0 <= level && level <= names.length ? level
+                    : names.includes(level) ? level : 5;
+            },
+            above: level => names.slice(level + 1),
+
+            isEnabled: level => Number.isInteger(requested) && requested <= level
+                || names.slice(0, level + 1).includes(requested)
+        };
+    })();
+
+    /** Calculates the shortest distance in pixels between a point
+     *  represented by 'top' and 'left' and the closest side of an axis-aligned rectangle.
+     *  Returns 0 if the point is inside or on the edge of the rectangle.
+     *  Inspired by https://gamedev.stackexchange.com/a/50722 .
+     *  @param {int} top The distance of the point from the top of the viewport.
+     *  @param {int} left The distance of the point from the left of the viewport.
+     *  @param {DOMRect} rect The bounding box to get the distance to.
+     *  @returns {int} The distance of the outside point or 0. */
+    function getDistanceToRect(top, left, rect) {
+        const dx = Math.max(rect.left, Math.min(left, rect.right)),
+            dy = Math.max(rect.top, Math.min(top, rect.bottom));
+
+        return Math.sqrt((left - dx) * (left - dx) + (top - dy) * (top - dy));
+    }
+
+    /** Calculates the distance between two non-overlapping axis-aligned rectangles.
+     *  Returns 0 if the rectangles touch or overlap.
+     *  @param {DOMRect} a The first bounding box.
+     *  @param {DOMRect} b The second bounding box.
+     *  @returns {int} The distance between the two bounding boxes or 0 if they touch or overlap. */
+    function getDistance(a, b) {
+        /** Gets coordinate pairs for the corners of a rectangle r.
+         * @param {DOMRect} r the rectangle.
+         * @returns {Array}} */
+        const getCorners = r => [[r.top, r.left], [r.top, r.right], [r.bottom, r.left], [r.bottom, r.right]],
+            /** Gets the distances of the corners of rectA to rectB. */
+            getCornerDistances = (rectA, rectB) => getCorners(rectA).map(c => getDistanceToRect(c[0], c[1], rectB)),
+            aRect = a.getBoundingClientRect(),
+            bRect = b.getBoundingClientRect(),
+            cornerDistances = getCornerDistances(aRect, bRect).concat(getCornerDistances(bRect, aRect));
+
+        return Math.min(...cornerDistances);
+    }
+
+    function interceptConsole(interceptorsByLevel) {
+        const originals = {};
+
+        for (let [level, interceptor] of Object.entries(interceptorsByLevel)) {
+            if (typeof console[level] !== 'function') continue;
+            originals[level] = console[level];
+            console[level] = function () { interceptor.call(this, originals[level], arguments); };
+        }
+
+        return () => { // call to detach interceptors
+            for (let [level, original] of Object.entries(originals))
+                console[level] = original;
+        };
+    }
+
+    let renderedEdges = []; // contains info about the arrows between types on the diagram once rendered
+
+    function getRelationLabels(svgParent, type) {
+        const edgeLabels = [...svgParent.querySelectorAll('.edgeLabels span.edgeLabel span')],
+            extension = 'extension';
+
+        return renderedEdges.filter(e => e.v === type // type name needs to match
+            && e.value.arrowTypeStart !== extension && e.value.arrowTypeEnd !== extension) // exclude inheritance arrows
+            .map(edge => {
+                const labelHtml = edge.value.label,
+                    // filter edge labels with matching HTML
+                    labels = edgeLabels.filter(l => l.outerHTML === labelHtml);
+
+                if (labels.length === 1) return labels[0]; // return the only matching label
+                else if (labels.length < 1) console.error(
+                    "Tried to find a relation label for the following edge (by its value.label) but couldn't.", edge);
+                else { // there are multiple edge labels with the same HTML (i.e. matching relation name)
+                    // find the path that is rendered for the edge
+                    const path = svgParent.querySelector('.edgePaths>path.relation#' + edge.value.id),
+                        labelsByDistance = labels.sort((a, b) => getDistance(path, a) - getDistance(path, b));
+
+                    console.warn('Found multiple relation labels matching the following edge (by its value.label). Returning the closest/first.',
+                        edge, labelsByDistance);
+
+                    return labelsByDistance[0]; // and return the matching label closest to it
+                }
+            });
+    }
+
     return {
+        init: config => {
+
+            /* Override console.info to intercept a message posted by mermaid including information about the edges
+                (represented by arrows between types in the rendered diagram) to access the relationship info
+                parsed from the diagram descriptions of selected types.
+                This works around the mermaid API currently not providing access to this information
+                and it being hard to reconstruct from the rendered SVG alone.
+                Why do we need that info? Knowing about the relationships between types, we can find the label
+                corresponding to a relation and attach XML documentation information to it, if available.
+                See how getRelationLabels is used. */
+            const interceptors = {
+                info: function (overridden, args) {
+                    // intercept message containing rendered edges
+                    if (args[2] === 'Graph in recursive render: XXX') renderedEdges = args[3].edges;
+
+                    // only foward to overridden method if this log level was originally enabled
+                    if (logLevel.isEnabled(2)) overridden.call(this, ...args);
+                }
+            };
+
+            logLevel.setRequested(config.logLevel); // remember original log level
+            const requiredLevel = 2; // to enable intercepting info message above
+
+            // lower configured log level if required to guarantee above interceptor gets called
+            if (!logLevel.isEnabled(requiredLevel)) config.logLevel = requiredLevel;
+
+            // suppress console output for higher log levels accidentally activated by lowering to required level
+            for (let level of logLevel.above(requiredLevel))
+                if (!logLevel.isEnabled(level)) interceptors[level] = () => { };
+
+            const detachInterceptors = interceptConsole(interceptors); // attaches console interceptors
+            mermaid.initialize(config); // init the mermaid sub-system with interceptors in place
+            detachInterceptors(); // to avoid intercepting messages outside of that context we're not interested in
+        },
+
         /**
          * 
          * @param {object} typeDetails An object with the names of types to display in detail (i.e. with members) for keys
@@ -75,14 +209,15 @@ const mermaidExtensions = (() => {
          */
         processTypes: (typeDetails, direction, filterRegex) => {
             const getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
-                detailedTypes = Object.keys(typeDetails);
+                detailedTypes = Object.keys(typeDetails),
+                xmlDocs = {}; // to be appended with docs of selected types below
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
                 + 'direction ' + direction + '\n\n';
 
             // process selected types
-            for (let details of Object.entries(typeDetails)) {
+            for (let [type, details] of Object.entries(typeDetails)) {
                 diagram += details.DiagramDefinition + '\n\n';
 
                 if (details.InheritedMembersByDeclaringType) {
@@ -101,17 +236,57 @@ const mermaidExtensions = (() => {
                         diagram += members + '\n';
                     }
                 }
+
+                xmlDocs[type] = details.XmlDocs;
             }
 
             if (filterRegex !== null) diagram = diagram.replace(filterRegex, '');
 
-            return { diagram, detailedTypes };
+            return { diagram, detailedTypes, xmlDocs };
         },
 
         postProcess: (svgParent, options) => {
             for (let entity of svgParent.querySelectorAll('g.nodes>g').values()) {
                 const title = entity.querySelector('.classTitle'),
-                    name = title.textContent;
+                    name = title.textContent,
+                    docs = structuredClone((options.xmlDocs || [])[name]); // clone to have a modifyable collection without affecting the original
+
+                // splice in XML documentation as label titles if available
+                if (docs) {
+                    const typeKey = '', nodeLabel = 'span.nodeLabel',
+                        relationLabels = getRelationLabels(svgParent, name),
+
+                        setDocs = (label, member) => {
+                            label.title = docs[member];
+                            delete docs[member];
+                        },
+
+                        documentOwnLabel = (label, member) => {
+                            setDocs(label, member);
+                            ownLabels = ownLabels.filter(l => l !== label); // remove label
+                        };
+
+                    let ownLabels = [...entity.querySelectorAll('g.label ' + nodeLabel)];
+
+                    // document the type label itself
+                    if (hasProperty(docs, typeKey)) documentOwnLabel(title.querySelector(nodeLabel), typeKey);
+
+                    // loop through documented members longest name first
+                    for (let member of Object.keys(docs).sort((a, b) => b.length - a.length)) {
+                        // matches only whole words in front of method signatures starting with (
+                        const memberName = new RegExp(`(?<!.*\\(.*)\\b${member}\\b`),
+                            matchingLabels = ownLabels.filter(l => memberName.test(l.textContent)),
+                            related = relationLabels.find(l => l.textContent === member);
+
+                        if (related) matchingLabels.push(related);
+
+                        if (matchingLabels.length === 0) console.error(
+                            `Expected to find either a member or relation label for ${name}.${member} to attach the XML documentation to but found none.`);
+                        else if (matchingLabels.length > 1) console.error(
+                            `Expected to find one member or relation label for ${name}.${member} to attach the XML documentation to but found multiple. Applying the first.`, matchingLabels);
+                        else documentOwnLabel(matchingLabels[0], member);
+                    }
+                }
 
                 if (typeof options.onTypeClick === 'function') entity.addEventListener('click',
                     function (event) { options.onTypeClick.call(this, event, name); });
@@ -243,7 +418,7 @@ const layoutDirection = (() => {
 })();
 
 const render = async () => {
-    const { diagram, detailedTypes } = mermaidExtensions.processTypes(
+    const { diagram, detailedTypes, xmlDocs } = mermaidExtensions.processTypes(
         typeFilter.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
 
     console.info(diagram);
@@ -257,6 +432,8 @@ const render = async () => {
     output.innerHTML = svg;
 
     mermaidExtensions.postProcess(output, {
+        xmlDocs,
+
         onTypeClick: async (event, name) => {
             // toggle selection and re-render on clicking entity
             typeFilter.toggleOption(name);
@@ -533,5 +710,5 @@ document.onkeydown = async (event) => {
     }
 };
 
-mermaid.initialize({ startOnLoad: false });
+mermaidExtensions.init({ startOnLoad: false }); // initializes mermaid as well
 typeFilter.focus(); // focus type filter initially to enable keyboard input
