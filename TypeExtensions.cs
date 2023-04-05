@@ -23,4 +23,23 @@ namespace NetAmermaid
             return types.Except(compilerGenerated).Except(nestedInCompilerGenerated);
         }
     }
+
+    internal static class MemberInfoExtensions
+    {
+        /// <summary>Groups the <paramref name="members"/> into a dictionary
+        /// with <see cref="MemberInfo.DeclaringType"/> keys.</summary>
+        internal static Dictionary<Type, T[]> GroupByDeclaringType<T>(this IEnumerable<T> members) where T : MemberInfo
+            => members.GroupByDeclaringType(m => m);
+
+        /// <summary>Groups the <paramref name="objectsWithMembers"/> into a dictionary
+        /// with <see cref="MemberInfo.DeclaringType"/> keys using <paramref name="getMember"/>.</summary>
+        internal static Dictionary<Type, T[]> GroupByDeclaringType<T>(this IEnumerable<T> objectsWithMembers, Func<T, MemberInfo> getMember)
+            => objectsWithMembers.GroupBy(m => getMember(m).DeclaringType!).ToDictionary(g => g.Key, g => g.ToArray());
+    }
+
+    internal static class DictionaryExtensions
+    {
+        internal static Tout? GetValue<T, Tout>(this IDictionary<T, Tout> dictionary, T key)
+            => dictionary.ContainsKey(key) ? dictionary[key] : default;
+    }
 }

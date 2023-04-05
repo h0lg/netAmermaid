@@ -17,20 +17,17 @@
             return pad ? string.Concat(separator, joined, separator) : joined;
         }
 
-        /// <summary>
-        /// Determines whether the string contains another string while ignoring the case.
-        /// </summary>
-        /// <param name="self">The string that contains.</param>
-        /// <param name="other">The string that is contained.</param>
-        /// <returns>
-        ///   <c>true</c> if the string contains the other string; otherwise, <c>false</c>.
-        /// </returns>
-        public static bool ContainsIgnoreCase(this string[] collection, string other)
-        {
-            if (collection == null) return false;
+        /// <summary>Formats all items in <paramref name="collection"/> using the supplied <paramref name="format"/> strategy
+        /// and returns a string collection - even if the incoming <paramref name="collection"/> is null.</summary>
+        internal static IEnumerable<string> FormatAll<T>(this IEnumerable<T>? collection, Func<T, string> format)
+            => collection?.Select(format) ?? Enumerable.Empty<string>();
 
+        /// <summary>Determines whether the <paramref name="collection"/> contains the
+        /// <paramref name="value"/> while ignoring the case during comparison.</summary>
+        public static bool ContainsIgnoreCase(this string[] collection, string value)
+        {
             foreach (var item in collection)
-                if (item.Equals(other, StringComparison.OrdinalIgnoreCase)) return true;
+                if (value.Equals(item, StringComparison.OrdinalIgnoreCase)) return true;
 
             return false;
         }

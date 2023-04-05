@@ -63,6 +63,63 @@ const notify = (() => {
     };
 })();
 
+const mermaidExtensions = (() => {
+    return {
+        /**
+         * 
+         * @param {object} typeDetails An object with the names of types to display in detail (i.e. with members) for keys
+         * and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Name) for values.
+         * @param {string} direction The layout direction of the resulting diagram
+         * @param {string|RegExp} filterRegex A regular expression matching things to exclude from the diagram definition.
+         * @returns
+         */
+        processTypes: (typeDetails, direction, filterRegex) => {
+            const getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
+                detailedTypes = Object.keys(typeDetails);
+
+            // init diagram code with header and layout direction to be appended to below
+            let diagram = 'classDiagram' + '\n'
+                + 'direction ' + direction + '\n\n';
+
+            // process selected types
+            for (let details of Object.entries(typeDetails)) {
+                diagram += details.DiagramDefinition + '\n\n';
+
+                if (details.InheritedMembersByDeclaringType) {
+                    const ancestorTypes = getAncestorTypes(details);
+
+                    // exclude inherited members from sub classes if they are already rendered in a super class
+                    for (let [ancestorType, members] of Object.entries(details.InheritedMembersByDeclaringType)) {
+                        if (detailedTypes.includes(ancestorType)) continue; // inherited members will be rendered in base type
+
+                        // find inherited props already displays by detailed base types
+                        let renderedInheritedProps = ancestorTypes.filter(t => detailedTypes.includes(t)) // get detailed ancestor types
+                            .map(type => getAncestorTypes(typeDetails[type])) // select their ancestor types
+                            .reduce((union, ancestors) => union.concat(ancestors), []); // squash them into a one-dimensional array (ignoring duplicates)
+
+                        if (renderedInheritedProps.includes(ancestorType)) continue;
+                        diagram += members + '\n';
+                    }
+                }
+            }
+
+            if (filterRegex !== null) diagram = diagram.replace(filterRegex, '');
+
+            return { diagram, detailedTypes };
+        },
+
+        postProcess: (svgParent, options) => {
+            for (let entity of svgParent.querySelectorAll('g.nodes>g').values()) {
+                const title = entity.querySelector('.classTitle'),
+                    name = title.textContent;
+
+                if (typeof options.onTypeClick === 'function') entity.addEventListener('click',
+                    function (event) { options.onTypeClick.call(this, event, name); });
+            }
+        }
+    };
+})();
+
 const typeFilter = (() => {
     const select = getById('typeFilter'),
         renderBtn = getById('render'),
@@ -113,9 +170,9 @@ const typeFilter = (() => {
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
             const namespace = option.parentElement.nodeName === 'OPTGROUP' ? option.parentElement.label : '',
                 type = option.value,
-                definition = typeDefsByNamespace[namespace][type];
+                details = typeDefsByNamespace[namespace][type];
 
-            return [type, definition];
+            return [type, details];
         })),
 
         moveSelection: up => {
@@ -168,10 +225,7 @@ const baseTypeInheritanceFilter = (() => {
     checkbox.hidden = !hasRegex;
     for (let label of checkbox.labels) label.hidden = !hasRegex;
 
-    return {
-        applies: () => inheritanceRegex !== null && !checkbox.checked,
-        regex: inheritanceRegex
-    };
+    return { getRegex: () => inheritanceRegex !== null && !checkbox.checked ? inheritanceRegex : null };
 })();
 
 const layoutDirection = (() => {
@@ -189,19 +243,8 @@ const layoutDirection = (() => {
 })();
 
 const render = async () => {
-    const typeDetails = typeFilter.getSelected(),
-        detailedTypes = Object.keys(typeDetails);
-
-    // init diagram code with header and layout direction to be appended to below
-    let diagram = 'classDiagram' + '\n'
-        + 'direction ' + layoutDirection.get() + '\n\n';
-
-    // process selected types
-    for (let definition of typeDetails) {
-        diagram += definition + '\n\n';
-    }
-
-    if (baseTypeInheritanceFilter.applies()) diagram = diagram.replace(baseTypeInheritanceFilter.regex, '');
+    const { diagram, detailedTypes } = mermaidExtensions.processTypes(
+        typeFilter.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
 
     console.info(diagram);
 
@@ -213,17 +256,13 @@ const render = async () => {
 
     output.innerHTML = svg;
 
-    // post-process SVG
-    for (let entity of output.querySelectorAll('g.nodes>g').values()) {
-        const title = entity.querySelector('.classTitle'),
-            name = title.textContent;
-
-        // toggle selection and re-render on clicking entity
-        entity.addEventListener('click', async () => {
+    mermaidExtensions.postProcess(output, {
+        onTypeClick: async (event, name) => {
+            // toggle selection and re-render on clicking entity
             typeFilter.toggleOption(name);
             await render();
-        });
-    }
+        }
+    });
 
     lastRenderedTypes.set(detailedTypes);
     exportOptions.enable(detailedTypes.length > 0);

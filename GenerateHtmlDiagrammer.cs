@@ -32,7 +32,8 @@ namespace NetAmermaid
             var diagrammer = new MermaidClassDiagrammer();
 
             // convert collections to dictionaries for easier access in JS
-            var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty, ns => ns.Types);
+            var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
+                ns => ns.Types.ToDictionary(t => t.Name, t => new { t.DiagramDefinition, t.InheritedMembersByDeclaringType }));
 
             var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions { WriteIndented = true });
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");

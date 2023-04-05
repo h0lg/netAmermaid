@@ -38,20 +38,24 @@ namespace NetAmermaid
             => types.GroupBy(t => t.Namespace).Select(ns => new Namespace
             {
                 Name = ns.Key,
-                Types = ns.OrderBy(t => t.FullName).ToDictionary(type => GetName(type), type => type.IsEnum ? GetEnumDefinition(type) : GetDefinition(type, types))
+                Types = ns.OrderBy(t => t.FullName).Select(type => type.IsEnum ? GetEnumDefinition(type) : GetDefinition(type, types)).ToArray()
             }).OrderBy(ns => ns.Name);
 
-        private string GetEnumDefinition(Type type)
+        private Namespace.Type GetEnumDefinition(Type type)
         {
             var name = GetName(type);
 
             var fields = type.GetFields().Where(f => !f.IsSpecialName)
                 .Select(f => f.Name).Join(Environment.NewLine + "    ", pad: true);
 
-            return $"class {name} {{{fields}<<Enumeration>>}}";
+            return new Namespace.Type
+            {
+                Name = name,
+                DiagramDefinition = $"class {name} {{{fields}<<Enumeration>>}}",
+            };
         }
 
-        private string GetDefinition(Type type, Type[] types)
+        private Namespace.Type GetDefinition(Type type, Type[] types)
         {
             var typeName = GetName(type);
             var methods = GetMethods(type);
@@ -71,10 +75,22 @@ namespace NetAmermaid
                 .Where(f => f.GetCustomAttribute<CompilerGeneratedAttribute>() == null
                     && !propertyNames.ContainsIgnoreCase(f.Name) && !propertyNames.ContainsIgnoreCase("_" + f.Name)).ToArray();
 
-            var members = properties.Select(FormatDataProperty)
-               .Concat(methods.Select(FormatMethod))
-               .Concat(fields.Select(FormatField))
-               .Join(Environment.NewLine + "    ", pad: true);
+            #region split members up by declaring type
+            // to enable the diagrammer to exclude inherited members from sub classes if they are already rendered in a super class
+            var flatPropertiesByType = properties.Except(hasOneRelations)
+                .Except(hasManyRelations.Select(r => r.property)).GroupByDeclaringType();
+
+            var hasOneRelationsByType = hasOneRelations.GroupByDeclaringType();
+            var hasManyRelationsByType = hasManyRelations.GroupByDeclaringType(r => r.property);
+            var fieldsByType = fields.GroupByDeclaringType();
+            var methodsByType = methods.GroupByDeclaringType();
+            #endregion
+
+            #region build diagram definitions for the type itself and members declared by it
+            var members = flatPropertiesByType.GetValue(type).FormatAll(FormatFlatProperty)
+                .Concat(methodsByType.GetValue(type).FormatAll(FormatMethod))
+                .Concat(fieldsByType.GetValue(type).FormatAll(FormatField))
+                .Join(Environment.NewLine + "    ", pad: true);
 
             // see https://mermaid.js.org/syntax/classDiagram.html#annotations-on-classes
             var annotation = type.IsInterface ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
@@ -84,23 +100,44 @@ namespace NetAmermaid
 
             var relationships = type.GetInterfaces().Where(i => types.Contains(i)).Select(i => $"{GetName(i)}<|..{typeName}")
                 .Prepend(baseType)
-                .Concat(FormatHasOneRelations(typeName, hasOneRelations))
-                .Concat(FormatHasManyRelations(typeName, hasManyRelations))
+                .Concat(FormatHasOneRelations(typeName, hasOneRelationsByType.GetValue(type)))
+                .Concat(FormatHasManyRelations(typeName, hasManyRelationsByType.GetValue(type)))
                 .Where(line => !string.IsNullOrEmpty(line))
                 .Join(Environment.NewLine);
+            #endregion
 
-            return $"class {typeName} {{{body}}}" + twoLineBreaks + relationships;
+            #region build diagram definitions for inherited members by declaring type
+            var explicitTypePrefix = typeName + " : ";
+
+            // get ancestor types this one is inheriting members from
+            var inheritedMembersByType = flatPropertiesByType.Keys.Union(methodsByType.Keys).Union(fieldsByType.Keys)
+                .Union(hasOneRelationsByType.Keys).Union(hasManyRelationsByType.Keys).Where(t => t != type)
+                // and group inherited members by declaring type
+                .ToDictionary(GetName, t => flatPropertiesByType.GetValue(t).FormatAll(p => explicitTypePrefix + FormatFlatProperty(p))
+                    .Concat(methodsByType.GetValue(t).FormatAll(m => explicitTypePrefix + FormatMethod(m)))
+                    .Concat(fieldsByType.GetValue(t).FormatAll(f => explicitTypePrefix + FormatField(f)))
+                    .Concat(FormatHasOneRelations(typeName, hasOneRelationsByType.GetValue(t)))
+                    .Concat(FormatHasManyRelations(typeName, hasManyRelationsByType.GetValue(t)))
+                    .Join(Environment.NewLine));
+            #endregion
+
+            return new Namespace.Type
+            {
+                Name = typeName,
+                DiagramDefinition = $"class {typeName} {{{body}}}" + twoLineBreaks + relationships,
+                InheritedMembersByDeclaringType = inheritedMembersByType
+            };
         }
 
-        private IEnumerable<string> FormatHasManyRelations(string typeName, IEnumerable<(PropertyInfo property, Type itemType)> relations)
-            => relations.Select(relation =>
+        private IEnumerable<string> FormatHasManyRelations(string typeName, IEnumerable<(PropertyInfo property, Type itemType)>? relations)
+            => relations.FormatAll(relation =>
             {
                 var (property, itemType) = relation;
                 return $@"{typeName} --> ""*"" {GetName(itemType)} : {property.Name}";
             });
 
-        private IEnumerable<string> FormatHasOneRelations(string typeName, IEnumerable<PropertyInfo> relations)
-            => relations.Select(p => $"{typeName} --> {GetName(p.PropertyType)} : {p.Name}");
+        private IEnumerable<string> FormatHasOneRelations(string typeName, IEnumerable<PropertyInfo>? relations)
+            => relations.FormatAll(p => $"{typeName} --> {GetName(p.PropertyType)} : {p.Name}");
 
         private string FormatMethod(MethodInfo method)
         {
@@ -109,7 +146,7 @@ namespace NetAmermaid
             return $"{GetAccessibility(method)}{method.Name}({parameters}){modifier} {GetName(method.ReturnType)}";
         }
 
-        private string FormatDataProperty(PropertyInfo property)
+        private string FormatFlatProperty(PropertyInfo property)
         {
             var visibility = new string(property.GetAccessors().Select(GetAccessibility).Distinct().ToArray());
             return $"{visibility}{GetName(property.PropertyType)} {property.Name}";
@@ -142,7 +179,22 @@ namespace NetAmermaid
             public string? Name { get; set; }
 
             /// <summary>Types contained in the namespace for the consumer to decide which ones to display in detail on a diagram.</summary>
-            public Dictionary<string, string> Types { get; set; } = null!;
+            public Type[] Types { get; set; } = null!;
+
+            /// <summary>Mermaid class diagram definitions and documentation information about a
+            /// <see cref="System.Type"/> from the targeted assembly.</summary>
+            public sealed class Type
+            {
+                public string Name { get; set; } = null!;
+
+                /// <summary>Contains the definition of the type and its own (uninherited) members
+                /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
+                public string DiagramDefinition { get; set; } = null!;
+
+                /// <summary>Contains the mermaid class diagram definitions for inherited members by their <see cref="MemberInfo.DeclaringType"/>.
+                /// for the consumer to choose which of them to display in an inheritance scenario.</summary>
+                public IDictionary<string, string>? InheritedMembersByDeclaringType { get; set; }
+            }
         }
     }
 }
