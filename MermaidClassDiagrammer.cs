@@ -172,7 +172,18 @@ namespace NetAmermaid
         {
             var parameters = method.GetParameters().Select(p => $"{GetName(p.ParameterType)} {p.Name}").Join(", ");
             var modifier = method.IsAbstract ? "*" : method.IsStatic ? "$" : default;
-            return $"{GetAccessibility(method)}{method.Name}({parameters}){modifier} {GetName(method.ReturnType)}";
+            var name = method.Name;
+
+            if (name.Contains(".")) // interface implementations
+            {
+                var (iface, meth) = method.GetInterfaceMethod();
+
+                /* implemented interface method names could be prefixed with the interaface
+                 * name here, but mermaid syntax doesn't seem to support that currently */
+                name = meth.Name;
+            }
+
+            return $"{GetAccessibility(method)}{name}({parameters}){modifier} {GetName(method.ReturnType)}";
         }
 
         private string FormatFlatProperty(PropertyInfo property)

@@ -35,6 +35,27 @@ namespace NetAmermaid
         /// with <see cref="MemberInfo.DeclaringType"/> keys using <paramref name="getMember"/>.</summary>
         internal static Dictionary<Type, T[]> GroupByDeclaringType<T>(this IEnumerable<T> objectsWithMembers, Func<T, MemberInfo> getMember)
             => objectsWithMembers.GroupBy(m => getMember(m).DeclaringType!).ToDictionary(g => g.Key, g => g.ToArray());
+
+        /// <summary>Returns the implemented interface type and method for the specified
+        /// <paramref name="implementation"/> (or default if it doesn't implement an interface method).</summary>
+        internal static (Type, MethodInfo) GetInterfaceMethod(this MethodInfo implementation)
+        {
+            var signature = implementation.ToString();
+
+            foreach (var contract in implementation.DeclaringType!.GetInterfaces())
+            {
+                var interfaceMap = implementation.DeclaringType.GetInterfaceMap(contract);
+
+                foreach (var implemented in interfaceMap.TargetMethods)
+                    if (implemented.ToString() == signature)
+                    {
+                        var index = Array.IndexOf(interfaceMap.TargetMethods, implemented);
+                        return (interfaceMap.InterfaceType, interfaceMap.InterfaceMethods[index]);
+                    }
+            }
+
+            return default;
+        }
     }
 
     internal static class DictionaryExtensions
