@@ -42,4 +42,12 @@
     </ProjectReference>
   </ItemGroup>
 
+  <!-- appends git commit hash to assembly informational version; from https://stackoverflow.com/a/45248069
+    see also https://andrewlock.net/version-vs-versionsuffix-vs-packageversion-what-do-they-all-mean/ -->
+  <Target Name="InitializeSourceControlInformation2" BeforeTargets="AddSourceRevisionToInformationalVersion">
+    <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">
+      <Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput" />
+    </Exec>
+  </Target>
+
 </Project>
