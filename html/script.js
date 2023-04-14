@@ -299,9 +299,9 @@ const mermaidExtensions = (() => {
          * @returns
          */
         processTypes: (typeDetails, direction, filterRegex) => {
-            const getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
-                detailedTypes = Object.keys(typeDetails),
-                xmlDocs = {}; // to be appended with docs of selected types below
+            const detailedTypes = Object.keys(typeDetails),
+                xmlDocs = {}, // to be appended with docs of selected types below
+                getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType);
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
@@ -315,7 +315,7 @@ const mermaidExtensions = (() => {
                 if (details.InheritedMembersByDeclaringType) {
                     const ancestorTypes = getAncestorTypes(details);
 
-                    // exclude inherited members from sub classes if they are already rendered in a super class
+                    // only include inherited members in sub classes if they aren't already rendered in a super class
                     for (let [ancestorType, members] of Object.entries(details.InheritedMembersByDeclaringType)) {
                         if (detailedTypes.includes(ancestorType)) continue; // inherited members will be rendered in base type
 
@@ -325,7 +325,7 @@ const mermaidExtensions = (() => {
                             .reduce((union, ancestors) => union.concat(ancestors), []); // squash them into a one-dimensional array (ignoring duplicates)
 
                         if (renderedInheritedProps.includes(ancestorType)) continue;
-                        diagram += members + '\n';
+                        diagram += members + '\n\n';
                     }
                 }
 

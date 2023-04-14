@@ -1,76 +1,64 @@
-﻿using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml.Linq;
+﻿using System.Text.RegularExpressions;
+using ICSharpCode.Decompiler.Documentation;
+using ICSharpCode.Decompiler.TypeSystem;
 
 namespace NetAmermaid
 {
-    /// <summary>Loads XML documentation comments from a file and makes them accessible.
-    /// Make sure to enable XML documentation output , see
-    /// https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output .
-    /// Inspired by https://stackoverflow.com/a/20790428 .</summary>
-    public sealed class XmlDocumentationFile
+    /// <summary>Wraps the <see cref="IDocumentationProvider"/> to prettify XML documentation comments.
+    /// Make sure to enable XML documentation output, see
+    /// https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output .</summary>
+    public class XmlDocumentationFormatter
     {
-        private readonly Dictionary<string, string>? symbols;
+        /// <summary>Matches XML indent.</summary>
+        protected const string linePadding = @"^[ \t]+|[ \t]+$";
 
-        public bool HasEntries => symbols?.Keys.Any() == true;
+        /// <summary>Matches reference tags indluding "see href", "see cref" and "paramref name"
+        /// with the cref value being prefixed by symbol-specific letter and a colon
+        /// including the quotes around the attribute value and the closing slash of the tag containing the attribute.</summary>
+        protected const string referenceAttributes = @"(see\s.ref=""(.:)?)|(paramref\sname="")|(""\s/)";
 
-        public XmlDocumentationFile(string xmlDocsPath, string[]? strippedNamespaces)
+        private readonly IDocumentationProvider docs;
+        private readonly Regex noiseAndPadding;
+
+        public XmlDocumentationFormatter(IDocumentationProvider docs, string[]? strippedNamespaces)
         {
-            if (!File.Exists(xmlDocsPath)) return;
+            this.docs = docs;
+            List<string> regexes = new() { linePadding, referenceAttributes };
 
-            const string linePadding = @"^[ \t]+|[ \t]+$"; // matches XML indent
+            if (strippedNamespaces?.Any() == true)
+                regexes.AddRange(strippedNamespaces.Select(ns => $"({ns.Replace(".", "\\.")}\\.)"));
 
-            /*  matches reference tags indluding "see href", "see cref" and "paramref name"
-                with the cref value being prefixed by symbol-specific letter and a colon (see GetComment usage)
-                including the quotes around the attribute value and the closing slash of the tag containing the attribute */
-            const string referenceAttributes = @"(see\s.ref=""(.:)?)|(paramref\sname="")|(""\s/)";
-
-            var removableNamespaces = strippedNamespaces?.Any() == true
-                // builds an OR | combined regex for replacing namespaces
-                ? strippedNamespaces.Select(ns => $"({ns.Replace(".", "\\.")}\\.)").Join("|")
-                : null;
-
-            var regexes = new[] { linePadding, referenceAttributes, removableNamespaces }.Where(regex => regex != null);
-            var noiseAndPadding = new Regex(regexes.Join("|"), RegexOptions.Multiline);
-
-            symbols = XDocument.Load(xmlDocsPath).Root?.Element("members")?.Elements().ToDictionary(
-                member => member.Attribute("name")?.Value ?? string.Empty,
-                member =>
-                {
-                    var summary = member.Element("summary");
-                    if (summary == null) return string.Empty;
-
-                    var comment = summary.GetInnerXml()
-                        .Replace("<para>", Environment.NewLine).Replace("</para>", Environment.NewLine).Trim() // to format
-                        .Replace('<', '[').Replace('>', ']'); // to prevent ugly escaped output
-
-                    return noiseAndPadding.Replace(comment, string.Empty).NormalizeHorizontalWhiteSpace();
-                });
+            noiseAndPadding = new Regex(regexes.Join("|"), RegexOptions.Multiline); // builds an OR | combined regex
         }
 
-        public XmlDocumentationFile(Assembly assembly, string[]? strippedNamespaces)
-            : this(Path.ChangeExtension(assembly.Location, ".xml"), strippedNamespaces) { }
-
-        public string? ForType(Type type) => GetComment("T:" + type.FullName);
-        public string? ForProperty(PropertyInfo property) => GetComment($"P:{property.DeclaringType?.FullName}.{property.Name}");
-        public string? ForField(FieldInfo field) => GetComment($"F:{field.DeclaringType?.FullName}.{field.Name}");
-
-        public string? ForMethod(MethodInfo method)
+        internal Dictionary<string, string>? GetXmlDocs(ITypeDefinition type, params IMember[][] memberCollections)
         {
-            var signature = method.ToString();
-            var signatureWithoutReturnType = signature?[signature.IndexOf(method.Name)..];
-            return GetComment($"M:{method.DeclaringType?.FullName}.{signatureWithoutReturnType}");
+            Dictionary<string, string>? docs = new();
+            AddXmlDocEntry(docs, type);
+
+            foreach (IMember[] members in memberCollections)
+                foreach (IMember member in members)
+                    AddXmlDocEntry(docs, member);
+
+            return docs?.Keys.Any() == true ? docs : default;
         }
 
-        // helps getting the documentation comment for a symbol
-        private string? GetComment(string symbolName)
-            => symbols?.TryGetValue(symbolName, out var comment) == true ? comment : null;
-    }
+        protected virtual string? GetDoco(IEntity entity)
+        {
+            string? comment = docs.GetDocumentation(entity)?
+                .ReplaceAll(new[] { "<summary>", "</summary>" }, null)
+                .ReplaceAll(new[] { "<para>", "</para>" }, Environment.NewLine).Trim() // to format
+                .Replace('<', '[').Replace('>', ']'); // to prevent ugly escaped output
 
-    internal static class XElementExtensions
-    {
-        // from by https://stackoverflow.com/a/1704579
-        internal static string GetInnerXml(this XElement summary)
-            => summary.Nodes().Aggregate(string.Empty, (b, node) => b += node.ToString());
+            return comment == null ? null : noiseAndPadding.Replace(comment, string.Empty).NormalizeHorizontalWhiteSpace();
+        }
+
+        private void AddXmlDocEntry(Dictionary<string, string> docs, IEntity entity)
+        {
+            string? doc = GetDoco(entity);
+            if (string.IsNullOrEmpty(doc)) return;
+            string key = entity is IMember member ? member.Name : string.Empty;
+            docs[key] = doc;
+        }
     }
 }

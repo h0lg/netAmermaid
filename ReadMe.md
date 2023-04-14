@@ -133,7 +133,6 @@ The command line app exposes the following parameters.
 | `-b`, `--base-types`       | A regular expression matching the names of common base types in the `assembly`. Set to make displaying repetitive and noisy inheritance details on your diagrams optional via a control in the HTML diagrammer.                  |
 | `-n`, `--strip-namespaces` | Space-separated namespace names that are removed for brevity when displaying member details. Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.                   |
 | `-d`, `--docs`             | The path or file:// URI of the XML file containing the `assembly`'s documentation comments. You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the `assembly`. |
-| `-r`, `--resolve-folders`  | Space-separated list of folders to search if assembly lookup fails. Example might be `"C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\6.0.21"` if ASP.NET lookup assemblies are missing. |
 
 
 ## Advanced configuration examples

@@ -1,8 +1,8 @@
 ﻿using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CommandLine;
+using ICSharpCode.Decompiler.Documentation;
 
 namespace NetAmermaid
 {
@@ -40,59 +40,28 @@ namespace NetAmermaid
             $" To enable XML documentation output for your '{assembly}' see https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output .")]
         public string? XmlDocs { get; set; }
 
-        [Option('r', "resolve-folders", HelpText = $"Space-separated list of folders to search if assembly lookup fails." +
-            $" Example might be \"C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App\\6.0.21\".")]
-        public IEnumerable<string>? AssemblyResolveFolders { get; set; }
-
         public void Run()
         {
             var assemblyPath = GetPath(Assembly);
             var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
 
-            if (AssemblyResolveFolders != null)
-            {
-                List<string> assemblyResolveFoldersFinal = new(AssemblyResolveFolders);
-                assemblyResolveFoldersFinal.Insert(0, Path.GetDirectoryName(assemblyPath));
+            var xmlDocsPath = XmlDocs == null ? Path.ChangeExtension(assemblyPath, ".xml") : GetPath(XmlDocs);
+            XmlDocumentationFormatter? xmlDocs = null;
 
-                AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
-                {
-                    string assemblyName = args.Name.Substring(0, args.Name.IndexOf(","));
+            if (File.Exists(xmlDocsPath)) xmlDocs = new XmlDocumentationFormatter(
+                new XmlDocumentationProvider(xmlDocsPath), StrippedNamespaces?.ToArray());
+            else Console.WriteLine("No XML documentation file found. Continuing without.");
 
-                    foreach (string assemblyResolveFolder in assemblyResolveFoldersFinal)
-                    {
-                        string candidateAssemblyFilePath = Path.Combine(assemblyResolveFolder, $"{assemblyName}.dll");
-
-                        if (File.Exists(candidateAssemblyFilePath))
-                        {
-                            return System.Reflection.Assembly.LoadFrom(candidateAssemblyFilePath);
-                        }
-                    }
-
-                    return null;
-                };
-            }
-
-            var assembly = System.Reflection.Assembly.LoadFrom(assemblyPath);
-            var types = FilterTypes(assembly);
-
-            #region XML docs
-            var stripNamespaces = StrippedNamespaces?.ToArray();
-
-            var xmlDocs = XmlDocs == null ? new XmlDocumentationFile(assembly, stripNamespaces)
-                : new XmlDocumentationFile(GetPath(XmlDocs), stripNamespaces);
-
-            if (!xmlDocs.HasEntries) Console.WriteLine("No XML documentation found. Continuing without.");
-            #endregion
-
-            var diagrammer = new MermaidClassDiagrammer(xmlDocs);
+            MermaidClassDiagrammer diagrammer = new(assemblyPath, xmlDocs);
 
             // convert collections to dictionaries for easier access in JS
-            var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
+            var typeDefsByNamespace = diagrammer.GetDefinitions().ToDictionary(ns => ns.Name ?? string.Empty,
                 ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
 
             var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
             {
                 WriteIndented = true,
+                // avoid outputting null properties unnecessarily
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             });
 
@@ -116,8 +85,6 @@ namespace NetAmermaid
 
             Console.WriteLine("Successfully generated HTML diagrammer.");
         }
-
-        public virtual Type[] FilterTypes(Assembly assembly) => assembly.GetTypes().ExceptCompilerGenerated().ToArray();
 
         private protected virtual string GetPath(string pathOrUri)
         {

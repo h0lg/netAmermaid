@@ -9,7 +9,7 @@
 
         /// <summary>Replaces all occurances of <paramref name="oldValues"/> in
         /// <paramref name="input"/> with <paramref name="newValue"/>.</summary>
-        internal static string ReplaceAll(this string input, IEnumerable<string> oldValues, string newValue)
+        internal static string ReplaceAll(this string input, IEnumerable<string> oldValues, string? newValue)
             => oldValues.Aggregate(input, (aggregate, oldValue) => aggregate.Replace(oldValue, newValue));
 
         /// <summary>Joins the specified <paramref name="strings"/> to a single one
@@ -26,15 +26,5 @@
         /// and returns a string collection - even if the incoming <paramref name="collection"/> is null.</summary>
         internal static IEnumerable<string> FormatAll<T>(this IEnumerable<T>? collection, Func<T, string> format)
             => collection?.Select(format) ?? Enumerable.Empty<string>();
-
-        /// <summary>Determines whether the <paramref name="collection"/> contains the
-        /// <paramref name="value"/> while ignoring the case during comparison.</summary>
-        public static bool ContainsIgnoreCase(this string[] collection, string value)
-        {
-            foreach (var item in collection)
-                if (value.Equals(item, StringComparison.OrdinalIgnoreCase)) return true;
-
-            return false;
-        }
     }
 }
