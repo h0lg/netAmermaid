@@ -5,8 +5,8 @@ const getById = id => document.getElementById(id),
     triggerChangeOn = element => { element.dispatchEvent(new Event('change')); },
     hasProperty = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name);
 
-const radios = (() => {
-    const checked = ":checked",
+const checkable = (() => {
+    const checked = ':checked',
         inputsByName = name => `input[name=${name}]`,
         getInput = (name, filter, context) => (context || document).querySelector(inputsByName(name) + filter),
         getInputs = (name, context) => (context || document).querySelectorAll(inputsByName(name));
@@ -18,10 +18,10 @@ const radios = (() => {
             for (let radio of getInputs(name, context)) radio.onchange = handle;
         },
 
-        setChecked: (name, value, context) => {
+        setChecked: (name, value, triggerChange, context) => {
             const radio = getInput(name, `[value="${value}"]`, context);
             radio.checked = true;
-            triggerChangeOn(radio);
+            if (triggerChange !== false) triggerChangeOn(radio);
         }
     };
 })();
@@ -295,29 +295,30 @@ const mermaidExtensions = (() => {
          * @param {object} typeDetails An object with the IDs of types to display in detail (i.e. with members) for keys
          * and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values.
          * @param {string} direction The layout direction of the resulting diagram
-         * @param {string|RegExp} filterRegex A regular expression matching things to exclude from the diagram definition.
+         * @param {object} showInherited A regular expression matching things to exclude from the diagram definition.
          * @returns
          */
-        processTypes: (typeDetails, direction, filterRegex) => {
-            const detailedTypes = Object.keys(typeDetails),
+        processTypes: (typeDetails, direction, showInherited) => {
+            const detailedTypes = Object.keys(typeDetails), // types that will be rendered including their members and relations
                 xmlDocs = {}, // to be appended with docs of selected types below
-                getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType);
+                getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
+                isRendered = type => detailedTypes.includes(type),
 
-            // init diagram code with header and layout direction to be appended to below
-            let diagram = 'classDiagram' + '\n'
-                + 'accTitle: ' + output.getDiagramTitle() + '\n'
-                + 'direction ' + direction + '\n\n';
+                // renders base type and interfaces depending on settings and selected types
+                renderSuperTypes = (definitionsByTypeId, displayAll) => {
+                    if (definitionsByTypeId) // expecting object; only process if not null or undefined
+                        for (let [typeId, definition] of Object.entries(definitionsByTypeId))
+                            /* display relation arrow if either the user chose to display this kind of super type
+                                or the super type is selected to be rendered anyway and we might as well for completeness */
+                            if (displayAll || isRendered(typeId)) diagram += definition + '\n\n';
+                },
 
-            // process selected types
-            for (let [typeId, details] of Object.entries(typeDetails)) {
-                diagram += details.DiagramDefinition + '\n\n';
-
-                if (details.InheritedMembersByDeclaringType) {
+                renderInheritedMembers = details => {
                     const ancestorTypes = getAncestorTypes(details);
 
                     // only include inherited members in sub classes if they aren't already rendered in a super class
                     for (let [ancestorType, members] of Object.entries(details.InheritedMembersByDeclaringType)) {
-                        if (detailedTypes.includes(ancestorType)) continue; // inherited members will be rendered in base type
+                        if (isRendered(ancestorType)) continue; // inherited members will be rendered in base type
 
                         // find inherited props already displayed by detailed base types
                         let renderedInheritedProps = ancestorTypes.filter(t => detailedTypes.includes(t)) // get detailed ancestor types
@@ -327,12 +328,23 @@ const mermaidExtensions = (() => {
                         if (renderedInheritedProps.includes(ancestorType)) continue;
                         diagram += members + '\n\n';
                     }
-                }
+                };
 
+            // init diagram code with header and layout direction to be appended to below
+            let diagram = 'classDiagram' + '\n'
+                + 'accTitle: ' + output.getDiagramTitle() + '\n'
+                + 'direction ' + direction + '\n\n';
+
+            // process selected types
+            for (let [typeId, details] of Object.entries(typeDetails)) {
+                diagram += details.DiagramDefinition + '\n\n';
+                renderSuperTypes(details.BaseType, showInherited.types);
+                renderSuperTypes(details.Interfaces, showInherited.interfaces);
                 xmlDocs[typeId] = details.XmlDocs;
-            }
 
-            if (filterRegex !== null) diagram = diagram.replace(filterRegex, '');
+                if (showInherited.members && details.InheritedMembersByDeclaringType)
+                    renderInheritedMembers(details);
+            }
 
             lastRenderedDiagram = diagram;
             return { diagram, detailedTypes, xmlDocs };
@@ -406,6 +418,7 @@ const state = (() => {
         if (data.d) layoutDirection.set(data.d);
 
         if (data.t) {
+            inheritanceFilter.setFlagHash(data.i || ''); // if types are set, enable deselcting all options
             typeSelector.setSelected(data.t);
             await render(true);
         }
@@ -436,7 +449,8 @@ const state = (() => {
             const types = typeSelector.getSelected(),
                 t = Object.keys(types),
                 d = layoutDirection.get(),
-                data = { t, d },
+                i = inheritanceFilter.getFlagHash(),
+                data = { t, d, i },
                 typeNames = Object.values(types).map(t => t.Name);
 
             history.pushState(data, '', updateQueryString(location.href, data));
@@ -446,7 +460,7 @@ const state = (() => {
         },
         restore: async () => {
             const search = new URLSearchParams(location.search);
-            await restore({ d: search.get('d'), t: search.getAll('t') });
+            await restore({ d: search.get('d'), i: search.get('i'), t: search.getAll('t') });
         }
     };
 })();
@@ -536,40 +550,50 @@ const typeSelector = (() => {
     };
 })();
 
-const baseTypeInheritanceFilter = (() => {
-    const checkbox = getById('show-base-types'),
-        baseTypeRegex = checkbox.dataset.baseTypeRegex,
-        hasRegex = baseTypeRegex.length > 0,
+const inheritanceFilter = (() => {
+    const baseType = getById('show-base-types'),
+        interfaces = getById('show-interfaces'),
+        members = getById('show-inherited-members'),
+        getFlags = () => { return { types: baseType.checked, interfaces: interfaces.checked, members: members.checked }; };
 
-        /* matches expressions for inheritance from common base types
-            (the entire line including the ending line break for clean replacement)
-            see https://stackoverflow.com/a/4029123 on how to insert variables into regex */
-        inheritanceRegex = hasRegex ? new RegExp(`^${baseTypeRegex}<\\|--\\w+[\\r]?\\n`, 'gm') : null;
+    // automatically re-render on change
+    for (let checkbox of [baseType, interfaces, members])
+        checkbox.onchange = async () => { await render(); };
 
-    // hide show base type filter and label if no base type regex is supplied
-    checkbox.hidden = !hasRegex;
-    for (let label of checkbox.labels) label.hidden = !hasRegex;
+    return {
+        getFlags,
 
-    return { getRegex: () => inheritanceRegex !== null && !checkbox.checked ? inheritanceRegex : null };
+        getFlagHash: () => Object.entries(getFlags())
+            .filter(([, value]) => value) // only true flags
+            .map(([key]) => key[0]).join(''), // first character of each flag
+
+        setFlagHash: hash => {
+            baseType.checked = hash.includes('t');
+            interfaces.checked = hash.includes('i');
+            members.checked = hash.includes('m');
+        }
+    };
 })();
 
 const layoutDirection = (() => {
     const inputName = 'direction';
 
-    radios.onChange(inputName, async () => { await render(); });
+    // automatically re-render on change
+    checkable.onChange(inputName, async () => { await render(); });
 
     return {
-        get: () => radios.getValue(inputName),
+        get: () => checkable.getValue(inputName),
         set: (value, event) => {
-            radios.setChecked(inputName, value);
-            if (event !== undefined) event.preventDefault();
+            const hasEvent = event !== undefined;
+            checkable.setChecked(inputName, value, hasEvent);
+            if (hasEvent) event.preventDefault();
         }
     };
 })();
 
 const render = async isRestoringState => {
     const { diagram, detailedTypes, xmlDocs } = mermaidExtensions.processTypes(
-        typeSelector.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
+        typeSelector.getSelected(), layoutDirection.get(), inheritanceFilter.getFlags());
 
     console.info(diagram);
 
@@ -815,7 +839,7 @@ const exportOptions = (() => {
 
             if (!exporter.isClipboardAvailable()) notify('The clipboard seems unavailable in this browser :(');
             else {
-                const type = radios.getValue(saveAs);
+                const type = checkable.getValue(saveAs);
 
                 try {
                     if (type === png) {
@@ -833,7 +857,7 @@ const exportOptions = (() => {
         },
 
         save = event => {
-            const type = radios.getValue(saveAs);
+            const type = checkable.getValue(saveAs);
 
             if (type === png) {
                 const [dimension, size] = getDimensions();
@@ -849,21 +873,21 @@ const exportOptions = (() => {
             scaleInputs = container.querySelectorAll('#scale-controls input');
 
         // enable toggling dimension controls
-        radios.onChange(saveAs, event => {
+        checkable.onChange(saveAs, event => {
             collapse.toggle(dimensions, event.target.value === png);
         }, container);
 
         // enable toggling scale controls
-        radios.onChange(inputName, event => {
+        checkable.onChange(inputName, event => {
             const disabled = event.target.value !== 'scale';
             for (let input of scaleInputs) input.disabled = disabled;
         }, container);
 
         return () => {
-            let dimension = radios.getValue(inputName);
+            let dimension = checkable.getValue(inputName);
 
             // return dimension to scale to desired size if not exporting in current size
-            if (dimension !== 'auto') dimension = radios.getValue('scale');
+            if (dimension !== 'auto') dimension = checkable.getValue('scale');
 
             return [dimension, getById('scale-size').value];
         };

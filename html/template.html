@@ -64,10 +64,22 @@
 
             <select multiple id="type-select" class="grow" title="🥢 pick types to include in your diagram"></select>
 
-            <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
-                <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />
-                <label for="show-base-types">show base types</label>
-            </span>
+            <fieldset id="inheritance" class="scndry flx" title="You may find these options useful to reason about type inheritance - probably less so when looking at entity relations.">
+                <legend>show inherited</legend>
+
+                <span class="scndry flx" title="Render base types.">
+                    <input type="checkbox" id="show-base-types" checked />
+                    <label for="show-base-types">types</label>
+                </span>
+                <span class="scndry flx" title="Render interfaces.">
+                    <input type="checkbox" id="show-interfaces" checked />
+                    <label for="show-interfaces">interfaces</label>
+                </span>
+                <span class="scndry flx" title="Render members inherited from base types.">
+                    <input type="checkbox" id="show-inherited-members" checked />
+                    <label for="show-inherited-members">members</label>
+                </span>
+            </fieldset>
 
             <fieldset id="direction" class="scndry flx" title="[Ctrl + arrow keys] You may want to change this depending on your screen or printer and the size of the diagram.">
                 <legend>layout direction</legend>

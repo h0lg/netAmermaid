@@ -104,16 +104,8 @@ namespace NetAmermaid
             string? annotation = type.Kind == TypeKind.Interface ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
 
             string body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + Environment.NewLine;
-            var relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t => t.Kind != TypeKind.Interface && !t.IsObject());
-            var baseType = relevantBaseType == null ? null : ($"{GetId(relevantBaseType)} <|-- {typeId}" + LabelRelated(relevantBaseType, GetId(relevantBaseType)));
 
-            var relationships = type.DirectBaseTypes.Where(t => t.Kind == TypeKind.Interface).Select(iface =>
-            {
-                string ifaceId = GetId(iface);
-                return $"{ifaceId}<|..{typeId}" + LabelRelated(iface, ifaceId);
-            })
-                .Prepend(baseType)
-                .Concat(FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(type)))
+            string relationships = FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(type))
                 .Concat(FormatHasManyRelations(typeId, hasManyRelationsByType.GetValue(type)))
                 .Where(line => !string.IsNullOrEmpty(line))
                 .Join(Environment.NewLine);
@@ -136,12 +128,16 @@ namespace NetAmermaid
             #endregion
 
             string typeName = GetName(type);
+            (string? baseTypeId, string? baseTypeDefinition) = FormatBaseType(type, typeId) ?? default;
+            Dictionary<string, string>? interfaces = FormatInterfaces(type, typeId);
 
             return new Namespace.Type
             {
                 Id = typeId,
                 Name = typeName,
                 DiagramDefinition = $"class {typeId} [\"{typeName}\"] {{{body}}}" + twoLineBreaks + relationships,
+                BaseType = baseTypeDefinition == default ? null : new() { { baseTypeId, baseTypeDefinition } },
+                Interfaces = interfaces,
                 InheritedMembersByDeclaringType = inheritedMembersByType,
                 XmlDocs = docs
             };
@@ -163,6 +159,31 @@ namespace NetAmermaid
 
                 return isGeneric == true && types!.Contains(elementType) ? (property, elementType) : default;
             }).Where(pair => pair != default).ToArray();
+
+        private (string, string)? FormatBaseType(IType type, string typeId)
+        {
+            IType? relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t =>
+                t.Kind != TypeKind.Interface && !t.IsObject());
+
+            if (relevantBaseType == null) return default;
+            string baseTypeId = GetId(relevantBaseType);
+            var parameterized = relevantBaseType as ParameterizedType;
+            string? relationLabel = parameterized == null ? null : $" : {GetName(relevantBaseType)}";
+            string relatedLabel = LabelRelated(parameterized == null ? relevantBaseType : parameterized.GenericType, baseTypeId);
+            return (baseTypeId, $"{baseTypeId} <|-- {typeId}" + relationLabel + relatedLabel);
+        }
+
+        private Dictionary<string, string>? FormatInterfaces(ITypeDefinition type, string typeId)
+        {
+            var interfaces = type.DirectBaseTypes.Where(t => t.Kind == TypeKind.Interface).ToArray();
+            if (interfaces.Length == 0) return null;
+
+            return interfaces.Select(iface =>
+            {
+                string interfaceId = GetId(iface);
+                return (interfaceId, definition: $"{interfaceId} <|.. {typeId}" + LabelRelated(iface, interfaceId));
+            }).ToDictionary(t => t.interfaceId, t => t.definition);
+        }
 
         private IEnumerable<string> FormatHasManyRelations(string typeId, IEnumerable<(IProperty, IType)>? relations)
             => relations.FormatAll(relation =>
@@ -299,6 +320,11 @@ namespace NetAmermaid
                 /// <summary>Contains the definition of the type and its own (uninherited) members
                 /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
                 public string DiagramDefinition { get; set; } = null!;
+
+                /// <summary>Contains the definition of the type and its own (uninherited) members
+                /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
+                public Dictionary<string, string>? BaseType { get; set; }
+                public IDictionary<string, string>? Interfaces { get; set; }
 
                 /// <summary>Contains the mermaid class diagram definitions for inherited members by their <see cref="IMember.DeclaringType"/>.
                 /// for the consumer to choose which of them to display in an inheritance scenario.</summary>

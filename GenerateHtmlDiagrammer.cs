@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using CommandLine;
 using ICSharpCode.Decompiler.Documentation;
@@ -21,10 +20,6 @@ namespace NetAmermaid
         [Option('o', "output-folder", HelpText = $"The path of the folder to generate the {diagrammer} into." +
             $" This defaults to a 'netAmermaid' folder in the directory of the '{assembly}', which will be created if required.")]
         public string? OutputFolder { get; set; }
-
-        [Option('b', "base-types", HelpText = "A regular expression matching the names of common base types in the " + assembly
-            + $". Set to make displaying repetitive and noisy inheritance details on your diagrams optional via a control in the {diagrammer}.")]
-        public string? BaseTypes { get; set; }
 
         /// <summary>Namespaces to strip from <see cref="XmlDocs"/>.
         /// Implemented as a list of exact replacements instead of a single, more powerful RegEx because replacement in
@@ -56,7 +51,15 @@ namespace NetAmermaid
 
             // convert collections to dictionaries for easier access in JS
             var typeDefsByNamespace = diagrammer.GetDefinitions().ToDictionary(ns => ns.Name ?? string.Empty,
-                ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
+                ns => ns.Types.ToDictionary(t => t.Id, t => new
+                {
+                    t.Name,
+                    t.DiagramDefinition,
+                    t.BaseType,
+                    t.Interfaces,
+                    t.InheritedMembersByDeclaringType,
+                    t.XmlDocs
+                }));
 
             var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
             {
@@ -72,7 +75,6 @@ namespace NetAmermaid
             var html = htmlTemplate
                 .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
                 .Replace("{{repoUrl}}", RepoUrl)
-                .Replace("{{baseTypeRegex}}", WebUtility.HtmlEncode(BaseTypes))
                 .Replace("{{typeDefinitionsByNamespace}}", typeDefsJson)
                 .Replace("{{script}}", script);
 
