@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Diagnostics;
+using System.Text.RegularExpressions;
 using ICSharpCode.Decompiler.Documentation;
 using ICSharpCode.Decompiler.TypeSystem;
 
@@ -17,18 +18,23 @@ namespace NetAmermaid
         /// including the quotes around the attribute value and the closing slash of the tag containing the attribute.</summary>
         protected const string referenceAttributes = @"(see\s.ref=""(.:)?)|(paramref\sname="")|(""\s/)";
 
-        private readonly IDocumentationProvider docs;
-        private readonly Regex noiseAndPadding;
+        protected const string referencedTypeNamespaces = @"(?<=see cref=""T:)(.+\.)(?=\w+"" /)";
+        protected const string referencedMemberNamespaces = @"(?<=see cref=""[PFM]:)(.+\.)(?=\w+\.[\w`]+(?>\(.*\))?"" /)";
+        protected const string referencedMethodParameterLists = @"(?<=see cref=""M:[\w\.`]+\()(.+)(?=\))";
 
-        public XmlDocumentationFormatter(IDocumentationProvider docs, string[]? strippedNamespaces)
+        private readonly IDocumentationProvider docs;
+        private readonly Regex? strippedNamespaces;
+        private readonly Regex noiseAndPadding, referenceNamespaces;
+
+        public XmlDocumentationFormatter(IDocumentationProvider docs, string? strippedNamespaces)
         {
             this.docs = docs;
+            this.strippedNamespaces = strippedNamespaces == null ? null : new Regex(strippedNamespaces, RegexOptions.Multiline | RegexOptions.Compiled);
             List<string> regexes = new() { linePadding, referenceAttributes };
 
-            if (strippedNamespaces?.Any() == true)
-                regexes.AddRange(strippedNamespaces.Select(ns => $"({ns.Replace(".", "\\.")}\\.)"));
-
-            noiseAndPadding = new Regex(regexes.Join("|"), RegexOptions.Multiline); // builds an OR | combined regex
+            // build OR | combined regexes
+            noiseAndPadding = new Regex(regexes.Join("|"), RegexOptions.Multiline | RegexOptions.Compiled);
+            referenceNamespaces = new Regex(new[] { referencedTypeNamespaces, referencedMemberNamespaces }.Join("|"), RegexOptions.Multiline | RegexOptions.Compiled);
         }
 
         internal Dictionary<string, string>? GetXmlDocs(ITypeDefinition type, params IMember[][] memberCollections)
@@ -50,7 +56,16 @@ namespace NetAmermaid
                 .ReplaceAll(new[] { "<para>", "</para>" }, Environment.NewLine).Trim() // to format
                 .Replace('<', '[').Replace('>', ']'); // to prevent ugly escaped output
 
-            return comment == null ? null : noiseAndPadding.Replace(comment, string.Empty).NormalizeHorizontalWhiteSpace();
+            if (comment == null) return null;
+            if (Regex.IsMatch(comment, "[PFMT]:")) Debugger.Break();
+
+            if (strippedNamespaces != null) comment = referenceNamespaces.Replace(comment, (Match match)
+                => strippedNamespaces.Replace(match.Value, string.Empty).TrimStart('.'));
+
+            //TODO match and replace namespaces in referencedMethodParameterLists
+
+            comment = noiseAndPadding.Replace(comment, string.Empty).NormalizeHorizontalWhiteSpace();
+            return comment;
         }
 
         private void AddXmlDocEntry(Dictionary<string, string> docs, IEntity entity)

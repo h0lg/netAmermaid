@@ -38,9 +38,9 @@ namespace NetAmermaid
         /// <see cref="XmlDocumentationFormatter.GetDoco(ICSharpCode.Decompiler.TypeSystem.IEntity)"/>
         /// happens on the unstructured string where matching and replacing the namespaces of referenced types, members and method parameters
         /// using regexes would add a lot of complicated regex-heavy code for a rather unimportant feature.</summary>
-        [Option('n', "strip-namespaces", HelpText = "Space-separated namespace names that are removed for brevity from XML documentation comments." +
+        [Option('n', "strip-namespaces", HelpText = "A regular expression matching namespaces that are removed for brevity from XML documentation comments." +
             " Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.")]
-        public IEnumerable<string>? StrippedNamespaces { get; set; }
+        public string? StrippedNamespaces { get; set; }
 
         [Option('d', "docs", HelpText = $"The path or file:// URI of the XML file containing the {assembly}'s documentation comments." +
             $" You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the '{assembly}'." +
@@ -56,7 +56,7 @@ namespace NetAmermaid
             XmlDocumentationFormatter? xmlDocs = null;
 
             if (File.Exists(xmlDocsPath)) xmlDocs = new XmlDocumentationFormatter(
-                new XmlDocumentationProvider(xmlDocsPath), StrippedNamespaces?.ToArray());
+                new XmlDocumentationProvider(xmlDocsPath), StrippedNamespaces);
             else Console.WriteLine("No XML documentation file found. Continuing without.");
 
             ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
