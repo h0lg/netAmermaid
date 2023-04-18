@@ -6,6 +6,8 @@ using ICSharpCode.Decompiler.TypeSystem;
 
 namespace NetAmermaid
 {
+    using CD = ClassDiagrammer;
+
     /* See class diagram syntax
      * reference (may be outdated!) https://mermaid.js.org/syntax/classDiagram.html
      * lexical definition https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/diagrams/class/parser/classDiagram.jison */
@@ -33,7 +35,7 @@ namespace NetAmermaid
         /// that can be used to determine whether a member should be hidden.</summary>
         private bool IsHidden(IEntity entity) => CSharpDecompiler.MemberIsHidden(entity.ParentModule!.PEFile, entity.MetadataToken, decompilerSettings);
 
-        public ClassDiagrammer BuildDiagrammer(string? include, string? exclude)
+        public CD BuildDiagrammer(string? include, string? exclude)
         {
             IEnumerable<ITypeDefinition> allTypes = decompiler.TypeSystem.MainModule.TypeDefinitions;
 
@@ -41,7 +43,7 @@ namespace NetAmermaid
                 include == null ? null : new(include, RegexOptions.Compiled),
                 exclude == null ? null : new(exclude, RegexOptions.Compiled)).ToArray();
 
-            var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new Namespace
+            var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new CD.Namespace
             {
                 Name = ns.Key,
                 Types = ns.OrderBy(t => t.FullName).Select(type =>
@@ -49,7 +51,7 @@ namespace NetAmermaid
             }).OrderBy(ns => ns.Name).ToArray();
 
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
-            return new ClassDiagrammer { Namespaces = namespaces, Excluded = excluded };
+            return new CD { Namespaces = namespaces, Excluded = excluded };
         }
 
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)
@@ -57,7 +59,7 @@ namespace NetAmermaid
                 && (include == null || include.IsMatch(type.ReflectionName)) // applying optional whitelist filter
                 && (exclude == null || !exclude.IsMatch(type.ReflectionName))); // applying optional blacklist filter
 
-        private Namespace.Type GetEnumDefinition(ITypeDefinition type)
+        private CD.Type GetEnumDefinition(ITypeDefinition type)
         {
             IField[] fields = type.GetFields(f => f.IsConst && f.IsStatic && f.Accessibility == Accessibility.Public).ToArray();
             Dictionary<string, string>? docs = xmlDocs?.GetXmlDocs(type, fields);
@@ -66,7 +68,7 @@ namespace NetAmermaid
             var body = fields.Select(f => f.Name).Prepend("<<Enumeration>>")
                 .Join(Environment.NewLine + "    ", pad: true).TrimEnd(' ');
 
-            return new Namespace.Type
+            return new CD.Type
             {
                 Id = typeId,
                 Name = name,
@@ -75,7 +77,7 @@ namespace NetAmermaid
             };
         }
 
-        private Namespace.Type GetDefinition(ITypeDefinition type)
+        private CD.Type GetDefinition(ITypeDefinition type)
         {
             string typeId = GetId(type);
             IMethod[] methods = GetMethods(type).ToArray();
@@ -139,7 +141,7 @@ namespace NetAmermaid
             (string? baseTypeId, string? baseTypeDefinition) = FormatBaseType(type, typeId) ?? default;
             Dictionary<string, string>? interfaces = FormatInterfaces(type, typeId);
 
-            return new Namespace.Type
+            return new CD.Type
             {
                 Id = typeId,
                 Name = typeName,
@@ -300,48 +302,5 @@ namespace NetAmermaid
                 /* but exclude methods declared by object and their overrides, if inherited */
                 || !m.DeclaringType.IsObject()
                     && (!m.IsOverride || !InheritanceHelper.GetBaseMember(m).DeclaringType.IsObject())));
-
-        /// <summary>A construct for grouping types included in an assambly by namespace
-        /// to enable offering a structured type selection. Represents a <see cref="System.Type.Namespace"/>.</summary>
-        public sealed class Namespace
-        {
-            /// <inheritdoc cref="System.Type.Namespace"/>
-            public string? Name { get; set; }
-
-            /// <summary>Types contained in the namespace for the consumer to decide which ones to display in detail on a diagram.</summary>
-            public Type[] Types { get; set; } = null!;
-
-            /// <summary>Mermaid class diagram definitions and documentation information about a
-            /// <see cref="System.Type"/> from the targeted assembly.</summary>
-            public sealed class Type
-            {
-                /// <summary>Uniquely identifies the <see cref="System.Type"/> in the scope of the targeted assembly
-                /// as well as any HTML diagrammer rendered from it.
-                /// Should match \w+ to be safe to use as select option value and
-                /// part of the DOM id of the SVG node rendered for this type.</summary>
-                public string Id { get; set; } = null!;
-
-                /// <summary>The human-readable label for the type. Doesn't include the namespace and is therefore
-                /// not guaranteed to be unique in the scope of the targeted assembly or a diagram rendered from it.</summary>
-                public string Name { get; set; } = null!;
-
-                /// <summary>Contains the definition of the type and its own (uninherited) members
-                /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
-                public string DiagramDefinition { get; set; } = null!;
-
-                /// <summary>Contains the definition of the type and its own (uninherited) members
-                /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
-                public Dictionary<string, string>? BaseType { get; set; }
-                public IDictionary<string, string>? Interfaces { get; set; }
-
-                /// <summary>Contains the mermaid class diagram definitions for inherited members by their <see cref="IMember.DeclaringType"/>.
-                /// for the consumer to choose which of them to display in an inheritance scenario.</summary>
-                public IDictionary<string, string>? InheritedMembersByDeclaringType { get; set; }
-
-                /// <summary>Contains the XML documentation comments for this type
-                /// (using a <see cref="string.Empty"/> key) and its members, if available.</summary>
-                public IDictionary<string, string>? XmlDocs { get; set; }
-            }
-        }
     }
 }
