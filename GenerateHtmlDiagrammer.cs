@@ -11,7 +11,8 @@ namespace NetAmermaid
     {
         internal const string RepoUrl = "https://github.com/h0lg/netAmermaid";
 
-        private const string assembly = "assembly", diagrammer = "HTML diagrammer";
+        private const string assembly = "assembly", diagrammer = "HTML diagrammer",
+            exclude = "exclude", include = "include";
 
         [Option('a', assembly, Required = true,
             HelpText = $"The path or file:// URI of the .NET assembly to generate a {diagrammer} for.")]
@@ -20,6 +21,17 @@ namespace NetAmermaid
         [Option('o', "output-folder", HelpText = $"The path of the folder to generate the {diagrammer} into." +
             $" This defaults to a 'netAmermaid' folder in the directory of the '{assembly}', which will be created if required.")]
         public string? OutputFolder { get; set; }
+
+        [Option('i', include, HelpText = "A regular expression matching Type.FullName used to whitelist types.")]
+        public string? Include { get; set; }
+
+        [Option('e', exclude, HelpText = "A regular expression matching Type.FullName used to blacklist types.")]
+        public string? Exclude { get; set; }
+
+        [Option('r', "report-excluded", HelpText = $"Outputs a report of types excluded from the {diagrammer}" +
+            $" - whether by default because compiler-generated, explicitly by '--{exclude}' or implicitly by '--{include}'." +
+            $" You may find this useful to develop and debug your regular expressions.")]
+        public bool ReportExludedTypes { get; set; }
 
         /// <summary>Namespaces to strip from <see cref="XmlDocs"/>.
         /// Implemented as a list of exact replacements instead of a single, more powerful RegEx because replacement in
@@ -48,9 +60,10 @@ namespace NetAmermaid
             else Console.WriteLine("No XML documentation file found. Continuing without.");
 
             MermaidClassDiagrammer diagrammer = new(assemblyPath, xmlDocs);
+            var compilation = diagrammer.BuildDiagrammer(Include, Exclude);
 
             // convert collections to dictionaries for easier access in JS
-            var typeDefsByNamespace = diagrammer.GetDefinitions().ToDictionary(ns => ns.Name ?? string.Empty,
+            var typeDefsByNamespace = compilation.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
                 ns => ns.Types.ToDictionary(t => t.Id, t => new
                 {
                     t.Name,
@@ -86,6 +99,12 @@ namespace NetAmermaid
                 File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, resource), overwrite: true);
 
             Console.WriteLine("Successfully generated HTML diagrammer.");
+
+            if (ReportExludedTypes)
+            {
+                string excludedTypes = compilation.Excluded.Join(Environment.NewLine);
+                File.WriteAllText(Path.Combine(outputFolder, "excluded types.txt"), excludedTypes);
+            }
         }
 
         private protected virtual string GetPath(string pathOrUri)

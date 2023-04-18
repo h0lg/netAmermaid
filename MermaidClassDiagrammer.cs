@@ -16,38 +16,46 @@ namespace NetAmermaid
         private static readonly string twoLineBreaks = Environment.NewLine + Environment.NewLine;
 
         private readonly XmlDocumentationFormatter? xmlDocs;
-        private readonly Func<IEntity, bool> IsHidden;
-        private readonly ITypeDefinition[] types;
+        private readonly DecompilerSettings decompilerSettings;
+        private readonly CSharpDecompiler decompiler;
+
+        private ITypeDefinition[]? selectedTypes;
 
         public MermaidClassDiagrammer(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
         {
             this.xmlDocs = xmlDocs;
-
-            DecompilerSettings settings = new(LanguageVersion.Latest)
-            {
-                AutomaticProperties = true, // this setting is important for IsHidden to return true for backing fields
-                //ShowXmlDocumentation = true
-            };
-
-            CSharpDecompiler decompiler = new(assemblyPath, settings)
-            {
-                //DocumentationProvider = docs
-            };
-
-            IsHidden = (IEntity entity) => CSharpDecompiler.MemberIsHidden(entity.ParentModule.PEFile, entity.MetadataToken, settings);
-
-            //var assembly = System.Reflection.Assembly.LoadFrom(assemblyPath);
-            types = decompiler.TypeSystem.MainModule.TypeDefinitions
-                .Where(type => !type.IsCompilerGeneratedOrIsInCompilerGeneratedClass())
-                .ToArray();
+            decompilerSettings = new DecompilerSettings(LanguageVersion.Latest);
+            decompilerSettings.AutomaticProperties = true; // for IsHidden to return true for backing fields
+            decompiler = new CSharpDecompiler(assemblyPath, decompilerSettings);
         }
 
-        public IEnumerable<Namespace> GetDefinitions() => types.GroupBy(t => t.Namespace).Select(ns => new Namespace
+        /// <summary>Wraps a <see cref="CSharpDecompiler"/> method configurable via <see cref="decompilerSettings"/>
+        /// that can be used to determine whether a member should be hidden.</summary>
+        private bool IsHidden(IEntity entity) => CSharpDecompiler.MemberIsHidden(entity.ParentModule!.PEFile, entity.MetadataToken, decompilerSettings);
+
+        public ClassDiagrammer BuildDiagrammer(string? include, string? exclude)
         {
-            Name = ns.Key,
-            Types = ns.OrderBy(t => t.FullName)
-                .Select(type => type.Kind == TypeKind.Enum ? GetEnumDefinition(type) : GetDefinition(type, types)).ToArray()
-        }).OrderBy(ns => ns.Name);
+            IEnumerable<ITypeDefinition> allTypes = decompiler.TypeSystem.MainModule.TypeDefinitions;
+
+            selectedTypes = FilterTypes(allTypes,
+                include == null ? null : new(include, RegexOptions.Compiled),
+                exclude == null ? null : new(exclude, RegexOptions.Compiled)).ToArray();
+
+            var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new Namespace
+            {
+                Name = ns.Key,
+                Types = ns.OrderBy(t => t.FullName).Select(type =>
+                    type.Kind == TypeKind.Enum ? GetEnumDefinition(type) : GetDefinition(type)).ToArray()
+            }).OrderBy(ns => ns.Name).ToArray();
+
+            string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
+            return new ClassDiagrammer { Namespaces = namespaces, Excluded = excluded };
+        }
+
+        protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)
+            => typeDefinitions.Where(type => !type.IsCompilerGeneratedOrIsInCompilerGeneratedClass() // exlude compiler-generated and their nested types
+                && (include == null || include.IsMatch(type.ReflectionName)) // applying optional whitelist filter
+                && (exclude == null || !exclude.IsMatch(type.ReflectionName))); // applying optional blacklist filter
 
         private Namespace.Type GetEnumDefinition(ITypeDefinition type)
         {
@@ -67,12 +75,12 @@ namespace NetAmermaid
             };
         }
 
-        private Namespace.Type GetDefinition(ITypeDefinition type, ITypeDefinition[] types)
+        private Namespace.Type GetDefinition(ITypeDefinition type)
         {
             string typeId = GetId(type);
             IMethod[] methods = GetMethods(type).ToArray();
             IProperty[] properties = type.GetProperties().ToArray();
-            IProperty[] hasOneRelations = properties.Where(property => types.Contains(property.ReturnType)).ToArray();
+            IProperty[] hasOneRelations = properties.Where(property => selectedTypes!.Contains(property.ReturnType)).ToArray();
             (IProperty property, IType elementType)[] hasManyRelations = GetManyRelations(properties);
 
             var propertyNames = properties.Select(p => p.Name).ToArray();
@@ -157,7 +165,7 @@ namespace NetAmermaid
                     if (indexers.Length > 0) elementType = indexers.First().ReturnType;
                 }
 
-                return isGeneric == true && types!.Contains(elementType) ? (property, elementType) : default;
+                return isGeneric == true && selectedTypes!.Contains(elementType) ? (property, elementType) : default;
             }).Where(pair => pair != default).ToArray();
 
         private (string, string)? FormatBaseType(IType type, string typeId)
@@ -169,7 +177,7 @@ namespace NetAmermaid
             string baseTypeId = GetId(relevantBaseType);
             var parameterized = relevantBaseType as ParameterizedType;
             string? relationLabel = parameterized == null ? null : $" : {GetName(relevantBaseType)}";
-            string relatedLabel = LabelRelated(parameterized == null ? relevantBaseType : parameterized.GenericType, baseTypeId);
+            string relatedLabel = LabelRelated(parameterized?.GenericType ?? relevantBaseType, baseTypeId);
             return (baseTypeId, $"{baseTypeId} <|-- {typeId}" + relationLabel + relatedLabel);
         }
 
