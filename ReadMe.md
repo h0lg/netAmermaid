@@ -9,6 +9,7 @@ along type relations using rapid diagramming.
 
 <!--TOC-->
 - [What can it do for you and how?](#what-can-it-do-for-you-and-how)
+- [How does it work?](#how-does-it-work)
 - [Check out the demo](#check-out-the-demo)
 - [Optimized for exploration and sharing](#optimized-for-exploration-and-sharing)
 - [Generate a HTML diagrammer using the console app](#generate-a-html-diagrammer-using-the-console-app)
@@ -17,50 +18,87 @@ along type relations using rapid diagramming.
     - [After building](#after-building)
     - [After publishing](#after-publishing)
   - [Options](#options)
+  - [Tips for using the console app](#tips-for-using-the-console-app)
   - [Advanced configuration examples](#advanced-configuration-examples)
-    - [Shorten member names](#shorten-member-names)
-    - [Hide common inheritance noise](#hide-common-inheritance-noise)
+    - [Filter extracted types](#filter-extracted-types)
+    - [Strip namespaces from XML comments](#strip-namespaces-from-xml-comments)
     - [Adjust for custom XML docucmentation file names](#adjust-for-custom-xml-docucmentation-file-names)
-- [Tips for rendering diagrams using the HTML diagrammer](#tips-for-rendering-diagrams-using-the-html-diagrammer)
+- [Tips for using the HTML diagrammer](#tips-for-using-the-html-diagrammer)
+- [Thanks to](#thanks-to)
 - [Disclaimer](#disclaimer)
 <!--/TOC-->
 
 # What can it do for you and how?
 
-netAmermaid helps you create meaningful [class diagrams](https://mermaid.js.org/syntax/classDiagram.html) in two simple steps:
+> **Class diagrams** and Entity/Relationship diagrams **can be really helpful if done right**.
+They let us see how types relate - handing us a **ready-made mental map** for a subdomain.
+At the same time **they take a load of our minds**, sparing us from having to remember all those relations correctly across frantic code symbol navigations in our IDE.
+And occasionally they can serve as [safe and engaging fodder for big-brained busy-bodies](https://grugbrain.dev/#grug-on-factring-your-code) to stay the heck out of our code base.
+
+> **Drawing them takes way too long though** - even in fancy designers.
+And what's the point? Like any other hand-crafted documentation, **they're always outdated** - often from the very beginning.
+After a while their usability becomes a function of **how much time you want to spend maintaining** them.
+Also, they're next to useless in conversations about the *boundaries* of whatever subdomain or Aggregate you're looking at - because they **lack the interactivity to let you peek beyond the boundary**.
+
+**netAmermaid** helps you create useful on-the-fly class diagrams within seconds in two simple steps:
 
 1. Point the **command line tool** at an assembly to extract its type information
-and **generate a [HTML5](https://en.wikipedia.org/wiki/HTML5#New_APIs) diagramming app** from it.
-You can script this step and run it just before using the diagrammer - or
-hook it into your build pipeline to automate it for continuous integration.
-2. Open the **HTML diagrammer** to select types and **render class diagrams** from them
+and **build a [HTML5](https://en.wikipedia.org/wiki/HTML5#New_APIs) diagramming app** from it.
+To get it hot off your latest build, you can script this step and run it just before using the diagrammer - or
+hook it into your build pipeline to automate it for Continuous Integration.
+1. Open the **HTML diagrammer** to select types and **render class diagrams** from them
 within a couple of keystrokes - after which you can interact with the diagram directly
-to unfold the domain along type raleations. At any point, familiar key commands will copy the diagram to your clipboard
-or export it as either SVG or PNG.
+to unfold the domain along type relations. At any point, familiar key commands will copy the diagram to your clipboard
+or export it as either SVG, PNG or in [mermaid class diagram syntax](https://mermaid.js.org/syntax/classDiagram.html). You can also just share the URL with anybody with access to the HTML diagrammer or paste it into your code where helpful.
 
-If [XML documentation comments are available](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output),
-they'll be used to annotate types and members on your diagrams.
+If [**XML documentation comments** are available for the source assembly](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output), they're **used to annotate types and members on the generated diagrams**. Commented symbols show up highlighted, making the documentation accessible on hover.
+
+> Dealing with .Net assemblies, you've probably come across [**ILSpy**](https://github.com/icsharpcode/ILSpy) and can appreciate how useful it is to explore and understand even the most poorly documented library. Think of netAmermaid as a **visual version** of that - minus geeky details like code decompilation and symbol usage analysis. Instead,
+
+What netAmermaid offers is an **overview** over types, their members and **relations** and the ability to **unfold the domain** along them until you have enough **context** to make an informed decision. Use it as
+- a **mental mapping** tool to get your bearings in an **unknown domain**.
+- a **communication** tool for **your own domain** - when talking about the bigger picture with your team mates or even non-technical shareholders like product owners and users.
+
+# How does it work?
+
+To **extract the type info from the source assembly**, the netAmermaid CLI side-loads it including all its dependencies.
+The current implementation actually uses ILSpy under the hood for that because it's really good at figuring out [which runtime, GAC or private bin path to load referenced assemblies from](https://github.com/icsharpcode/ILSpy/blob/master/ICSharpCode.Decompiler/Metadata/UniversalAssemblyResolver.cs).
+
+The extracted type info is **structured into a model optimized for the HTML diagrammer** and serialized to JSON. The model is a mix between drop-in type definitions in mermaid class diagram syntax and destructured metadata about relations, inheritance and documentation comments.
+
+> The JSON type info is injected into the `template.html` alongside other resources like the `script.js` at corresponding `{{placeholders}}`. It comes baked into the HTML diagrammer to enable
+> - accessing the data and
+> - importing the mermaid module from a CDN
+>
+> locally without running a web server [while also avoiding CORS restrictions.](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy#file_origins)
+>
+> Note that you can
+> - **customize** the `template.html`, `script.js` and `styles.css` used in this process, e.g. for rewording or branding the UI.
+> - **build a stand-alone offline diagrammer** with *mermaid* baked in instead of loading it from a CDN. All you have to do is replace the `import` statetment for `/dist/mermaid.esm.min.mjs` at the top of `script.js` with the *contents* of [`/dist/mermaid.min.js`](https://unpkg.com/mermaid@latest/dist/mermaid.min.js) from the *mermaid* package of your choice.
+
+In the final step, the **HTML diagrammer app re-assembles the type info** based on the in-app type selection and rendering options **to generate [mermaid class diagrams](https://mermaid.js.org/syntax/classDiagram.html)** with the types, their relations and as much inheritance detail as you need.
 
 # Check out the demo
 
 Have a look at the diagrammer generated for [SubTubular](https://github.com/h0lg/SubTubular):
-It's got some [type relations](https://raw.githack.com/h0lg/SubTubular/netAmermaid/netAmermaid/class-diagram-generator.html?direction=LR&types=Caption&types=CaptionTrack&types=PaddedMatch&types=PaddedMatch_IncludedMatch&types=Video&types=VideoSearchResult&types=VideoSearchResult_CaptionTrackResult)
-and [inheritance](https://raw.githack.com/h0lg/SubTubular/netAmermaid/netAmermaid/class-diagram-generator.html?direction=TB&types=RemoteValidated&types=SearchChannel&types=SearchCommand&types=SearchCommand_Shows&types=SearchPlaylist&types=SearchPlaylistCommand&types=SearchPlaylistCommand_OrderOptions&types=SearchVideos)
-going on that offer a good playground.
+It's got some [type relations](https://raw.githack.com/h0lg/SubTubular/netAmermaid2/netAmermaid/class-diagrammer.html?d=LR&i=tim&t=Caption-CaptionTrack-PaddedMatch-IncludedMatch-Video-VideoSearchResult-CaptionTrackResult)
+and [inheritance](https://raw.githack.com/h0lg/SubTubular/netAmermaid2/netAmermaid/class-diagrammer.html?d=LR&i=tim&t=RemoteValidated-SearchChannel-SearchCommand-Shows-SearchPlaylist-SearchPlaylistCommand-OrderOptions-SearchVideos)
+going on that offer a decent playground.
 
 > Wouldn't it be great to show off netAmermaid's capabilities applied to itself?
 Sure - but with the console app being as simple as it is, its class diagrams
 are pretty boring and don't get the benefit across.
-As with any documentation, netAmermaid becomes more useful with higher complexity.
+As with any documentation, netAmermaid starts to shine at higher complexity.
 So you could say it offers little value to itself - 
 but it rather likes to call that selfless and feel good about it.
 
 # Optimized for exploration and sharing
+
 It is not the goal of the HTML diagrammer to create the perfect diagram -
 so you'll find few options to customize the layout.
 This is - to some degree - due to the nature of generative diagramming itself,
 while at other times the [mermaid API](https://mermaid.js.org/syntax/classDiagram.html) poses the limiting factor.
-Having said that, you can usually find a direction in which the automated layout works reasonably well.
+Having said that, you can usually **choose a direction** in which the automated layout works reasonably well.
 
 Instead, think of the diagrammer as
 - a browser for **exploring domains**
@@ -121,25 +159,51 @@ Note that the `Target` `Name` doesn't matter here and that the diagrammer is gen
 </Target>
 ```
 
-
 ## Options
 
 The command line app exposes the following parameters.
 
-| shorthand, name            |                                                                                                                                                                                                                                  |
-| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-a`, `--assembly`         | Required. The path or file:// URI of the .NET assembly to generate a HTML diagrammer for.                                                                                                                                        |
-| `-o`, `--output-folder`    | The path of the folder to generate the HTML diagrammer into.                                                                                                                                                                     |
-| `-b`, `--base-types`       | A regular expression matching the names of common base types in the `assembly`. Set to make displaying repetitive and noisy inheritance details on your diagrams optional via a control in the HTML diagrammer.                  |
-| `-n`, `--strip-namespaces` | Space-separated namespace names that are removed for brevity when displaying member details. Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.                   |
-| `-d`, `--docs`             | The path or file:// URI of the XML file containing the `assembly`'s documentation comments. You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the `assembly`. |
+| shorthand, name            |                                                                                                                                                                                                                                                                                                                                                                                                          |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-a`, `--assembly`         | Required. The path or file:// URI of the .NET assembly to generate a HTML diagrammer for.                                                                                                                                                                                                                                                                                                                |
+| `-o`, `--output-folder`    | The path of the folder to generate the HTML diagrammer into. This defaults to a 'netAmermaid' folder in the directory of the `assembly`, which will be created if required.                                                                                                                                                                                                                              |
+| `-i`, `--include`          | A regular expression matching Type.FullName used to whitelist types.                                                                                                                                                                                                                                                                                                                                     |
+| `-e`, `--exclude`          | A regular expression matching Type.FullName used to blacklist types.                                                                                                                                                                                                                                                                                                                                     |
+| `-r`, `--report-excluded`  | Outputs a report of types excluded from the HTML diagrammer - whether by default because compiler-generated, explicitly by `--exclude` or implicitly by `--include`. You may find this useful to develop and debug your regular expressions.                                                                                                                                                             |
+| `-n`, `--strip-namespaces` | Space-separated namespace names that are removed for brevity from XML documentation comments. Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.                                                                                                                                                                                          |
+| `-d`, `--docs`             | The path or file:// URI of the XML file containing the `assembly`'s documentation comments. You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the `assembly`. To enable XML documentation output for your `assembly` see https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output . |
 
+## Tips for using the console app
+
+**Compiler-generated** types and their nested types are **excluded by default**.
+
+Consider sussing out **big source assemblies** using [ILSpy](https://github.com/icsharpcode/ILSpy) first to get an idea about which subdomains to include in your diagrammers. Otherwise you may experience long build times and large file sizes for the diagrammer as well as a looong type selection opening it. At some point, mermaid may refuse to render all types in your selection because their definitions exceed the maximum input size. If that's where you find yourself, you may want to consider
+- using `--include` and `--exclude` to **limit the scope of the individual diagrammer to a certain subdomain**
+- generating **multiple diagrammers for different subdomains**.
 
 ## Advanced configuration examples
 
-Above example shows how the most important options are used. Let's have a quick look at the remaining ones, which allow for customization in your project setup and diagrams.
+Above examples show how the most important options are used. Let's have a quick look at the remaining ones, which allow for customization in your project setup and diagrams.
 
-### Shorten member names
+### Filter extracted types
+
+Sometimes the source assembly contains way more types than are sensible to diagram. Types with metadata for validation or mapping for exmaple. Or auto-generated types.
+Especially if you want to tailor a diagrammer for a certain target audience and hide away most of the supporting type system to avoid noise and unnecessary questions.
+
+In these scenarios you can supply Regular Expressions for types to `--include` (white-list) and `--exclude` (black-list).
+A third option option `--report-excluded` will output a `.txt` containting the list of effectively excluded types next to the HTML diagrammer containing the effectively included types.
+
+<pre>
+netAmermaid.exe <b>--include Your\.Models\..+ --exclude .+\+Metadata|.+\.Data\..+Map --report-excluded</b> --assembly ..\path\to\your\assembly.dll --output-folder .
+</pre>
+
+This example
+- includes all types in the top-level namespace `Your.Models`
+- while excluding
+  - nested types called `Metadata` and
+  - types ending in `Map` in a descendant `.Data.` namespaces.
+
+### Strip namespaces from XML comments
 
 You can reduce the noise in the member lists of classes on your diagrams by supplying a space-separated list of namespaces to omit from the output like so:
 
@@ -150,24 +214,6 @@ netAmermaid.exe <b>--strip-namespaces System.Collections.Generic System</b> --as
 Note how `System` is replaced **after** other namespaces starting with `System.` to achieve complete removal.
 Otherwise `System.Collections.Generic` wouldn't match the `Collections.Generic` left over after removing `System.`, resulting in partial removal only.
 
-### Hide common inheritance noise
-
-Supply a regular expression matching the names of the common base types in your assembly to make displaying
-repetitive and noisy inheritance details on your diagrams optional using a checkbox in the HTML diagrammer.
-
-Let's imagine, for example, an assembly containing the base types `IntegerKeyedEntity` and a `GuidKeyedEntity`
-(for entities identified by `int` or `Guid` keys respectively) and that most of the entity types derive from them.
-Class diagrams created *to visualize type relations* from that assembly would not only contain relationship arrows between types,
-but also one inheritance arrow *for each entity* pointing to its respective base type - creating lots of noise.
-
-To avoid this, you could configure the generation of the diagrammer as follows:
-
-<pre>
-netAmermaid.exe <b>--base-types (IntegerKeyedEntity|GuidKeyedEntity)</b> --assembly ..\path\to\your\assembly.dll --output-folder .
-</pre>
-
-Alternatively, a regular expression like `\w*KeyedEntity` would work just fine - if you value brevity over readability.
-
 ### Adjust for custom XML docucmentation file names
 
 If - for whatever reason - you have customized your XML documentation file output name, you can specify a custom path to pick it up from.
@@ -176,18 +222,34 @@ If - for whatever reason - you have customized your XML documentation file outpu
 netAmermaid.exe <b>--docs ..\path\to\your\docs.xml</b> --assembly ..\path\to\your\assembly.dll --output-folder .
 </pre>
 
-# Tips for rendering diagrams using the HTML diagrammer
+# Tips for using the HTML diagrammer
 
-- The type filter is focused by default. That means you can **immediately start typing**
+> **On Mac**, use the Command key ⌘ instead of `Ctrl`.
+
+- The type selection is focused by default. That means you can **immediately start typing**
 to select the type you want to use as a starting point for your diagram and **hit Enter to render** it.
+- Don't forget that you can hold [Shift] to **↕ range-select** and [Ctrl] to **± add to or subtract from** your selection.
+- With a **big type selection**, you'll want to use the **pre-filter** often. Focus it with [Ctrl + k]. Use plain text or an EcmaScript flavored RegEx to filter the selection.
 - After rendering, you can **explore the domain along type relations** by clicking related types on the diagram to toggle them in the filter and trigger re-rendering.
-- The diagram has a **layout direction**, i.e. **rendering depends on the order of your selection**! Use [Alt] + [Arrow Up|Down] to move selected types.
-- Did you notice the **key bindings** pointed out in the tooltips? They're trying to help you get stuff done as quickly and efficiently as possible.
-- You can **copy and save your diagrams**, but you don't have to; you can just **share the URL**
-to your type selection with people having access to the HTML diagrammer.
+- Changing the type selection or rendering options updates the URL in the location bar. That means you can
+    - 🔖 **bookmark** or 📣 **share the URL** to your diagram with whoever has access to this diagrammer,
+    - **access 🕔 earlier diagrams** recorded in your 🧾 browser history and
+    - **⇥ restore your type selection** to the picker from the URL using ⟳ Refresh [F5] if you lose it.
+- The diagram has a **layout direction**, i.e. **rendering depends on the order of your selection**! Use [Alt] + [Arrow Up|Down] to sort selected types.
+- You can **zoom the rendered diagram** using [Ctrl + mouse wheel] and **grab and drag to pan** it. Reset zoom and pan with [Ctrl + 0].
+- Need more space? **Adjust the sidebar size** by grabbing and dragging its edge or **hide it completely** with [Ctrl + b] to zen out on the diagram alone.
+- You can **copy and save your diagrams** using [Ctrl + c] or [Ctrl + s] resptectively. The first time you try to quick-save will open the export options for you to choose the format.
+- Showing off the diagrammer remotely? Enter **presentation mode** using [Ctrl + i] to **emphasize your mouse** pointer location, **visualize clicks** and **display pressed keys** for your audience to learn the commands while watching you.
+- **Look out for tooltips** to give you **more help** where necessary, like useful **key bindings** to help you get stuff done ASAP. You can also highlight all tooltipped elements with [Alt + i].
+
+# Thanks to
+
+in the order they're used in netAmermaid's pipeline:
+
+- [Command Line Parser](https://github.com/commandlineparser/commandline) for parsing shell arguments and making validation and help text display easy.
+- [ILSpy](https://github.com/icsharpcode/ILSpy) for reliably retrieving type information from anything that runs with half a broken limb and a dozen broken references. You can have an assembly and a dream and it'll still figure out where to load the dependencies from. In .Net Framework version hell, that is nothing short of amazing.
+- [mermaid](https://github.com/mermaid-js/mermaid) for abstracting the capabilites of d3 to a degree that allows the rest of us to build useful stuff without hurting our smol brains more than necessary.
 
 # Disclaimer
 
-No mermaids were harmed in the writing of this software and you shouldn't interpret the name as inciting capture of or violence against magical creatures.
-
-We would never - [they're doing a great job and we love and respect them for it](https://mermaid.js.org/).
+No mermaids were harmed in the writing of this software and you shouldn't interpret the name as inciting capture of or violence against magical creatures. We would never - [they're doing a great job and we love and respect them for it](https://mermaid.js.org/).
