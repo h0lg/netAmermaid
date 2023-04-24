@@ -214,7 +214,8 @@ const mermaidExtensions = (() => {
         };
     }
 
-    let renderedEdges = []; // contains info about the arrows between types on the diagram once rendered
+    let renderedEdges = [], // contains info about the arrows between types on the diagram once rendered
+        lastRenderedDiagram;
 
     function getRelationLabels(svg, type) {
         const edgeLabels = [...svg.querySelectorAll('.edgeLabels span.edgeLabel span')],
@@ -323,8 +324,11 @@ const mermaidExtensions = (() => {
 
             if (filterRegex !== null) diagram = diagram.replace(filterRegex, '');
 
+            lastRenderedDiagram = diagram;
             return { diagram, detailedTypes, xmlDocs };
         },
+
+        getDiagram: () => lastRenderedDiagram,
 
         postProcess: (svg, options) => {
             for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
@@ -745,6 +749,9 @@ const exporter = (() => {
         },
         onDownloadSVG: () => {
             simulateDownload(exportOptions.getFileName('svg'), `data:image/svg+xml;base64,${getBase64SVG()}`);
+        },
+        onDownloadMMD: diagram => {
+            simulateDownload(exportOptions.getFileName('mmd'), `data:text/vnd.mermaid;base64,${toBase64(diagram)}`);
         }
     };
 })();
@@ -780,11 +787,14 @@ const exportOptions = (() => {
         },
 
         save = event => {
-            if (radios.getValue(saveAs) === png) {
+            const type = radios.getValue(saveAs);
+
+            if (type === png) {
                 const [dimension, size] = getDimensions();
                 exporter.onDownloadPNG(event, dimension, size);
             }
-            else exporter.onDownloadSVG();
+            else if (type === 'svg') exporter.onDownloadSVG();
+            else exporter.onDownloadMMD(mermaidExtensions.getDiagram());
         };
 
     const getDimensions = (() => {
