@@ -22,6 +22,7 @@ namespace NetAmermaid
         private readonly CSharpDecompiler decompiler;
 
         private ITypeDefinition[]? selectedTypes;
+        private Dictionary<IType, string>? uniqueIds;
 
         public MermaidClassDiagrammer(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
         {
@@ -43,6 +44,9 @@ namespace NetAmermaid
                 include == null ? null : new(include, RegexOptions.Compiled),
                 exclude == null ? null : new(exclude, RegexOptions.Compiled)).ToArray();
 
+            // generate dict to read names from later
+            uniqueIds = GenerateUniqueIds(selectedTypes);
+
             var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new CD.Namespace
             {
                 Name = ns.Key,
@@ -58,6 +62,27 @@ namespace NetAmermaid
             => typeDefinitions.Where(type => !type.IsCompilerGeneratedOrIsInCompilerGeneratedClass() // exlude compiler-generated and their nested types
                 && (include == null || include.IsMatch(type.ReflectionName)) // applying optional whitelist filter
                 && (exclude == null || !exclude.IsMatch(type.ReflectionName))); // applying optional blacklist filter
+
+        /// <summary>Generates a dictionary of unique and short, but human readable identifiers for
+        /// <paramref name="types"/>to be able to safely reference them in any combination.</summary>
+        private static Dictionary<IType, string> GenerateUniqueIds(IEnumerable<ITypeDefinition> types)
+        {
+            Dictionary<IType, string> uniqueIds = new();
+            var groups = types.GroupBy(t => t.Name);
+
+            // simplified handling for the majority of unique types
+            foreach (var group in groups.Where(g => g.Count() == 1))
+                uniqueIds[group.First()] = group.Key;
+
+            // number non-unique types
+            foreach (var group in groups.Where(g => g.Count() > 1))
+            {
+                var counter = 0;
+                foreach (var type in group) uniqueIds[type] = type.Name + ++counter;
+            }
+
+            return uniqueIds;
+        }
 
         private CD.Type GetEnumDefinition(ITypeDefinition type)
         {
@@ -243,7 +268,10 @@ namespace NetAmermaid
 
         private string GetId(IType type)
         {
-            if (type is ParameterizedType generic) type = generic.GenericType;
+            if (type is ParameterizedType generic) type = generic.GenericType; // reference open instead of closed generic type
+            if (uniqueIds?.TryGetValue(type, out var uniqueName) == true) return uniqueName; // types included by FilterTypes
+
+            // types excluded by FilterTypes
             string? typeParams = type.TypeParameterCount == 0 ? null : ("_" + type.TypeParameters.Select(GetId).Join("_"));
 
             return type.FullName.Replace('.', '_')
