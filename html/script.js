@@ -636,22 +636,21 @@ const filterSidebar = (() => {
     https://stackoverflow.com/questions/28226677/save-inline-svg-as-jpeg-png-svg/28226736#28226736
     The closest I got was with this example https://canvg.js.org/examples/offscreen , but the shapes would remain empty. */
 const exporter = (() => {
-    const getBase64SVG = (svg, width, height) => {
+    const getSVGstring = (svg, width, height) => {
         height && svg?.setAttribute('height', `${height}px`);
         width && svg?.setAttribute('width', `${width}px`); // Workaround https://stackoverflow.com/questions/28690643/firefox-error-rendering-an-svg-image-to-html5-canvas-with-drawimage
-        if (!svg) {
-            svg = getSvgEl();
-        }
-        const svgString = svg.outerHTML
-            .replaceAll('<br>', '<br/>')
+        if (!svg) svg = getSvgEl();
+
+        return svg.outerHTML.replaceAll('<br>', '<br/>')
             .replaceAll(/<img([^>]*)>/g, (m, g) => `<img ${g} />`);
-        return toBase64(svgString);
     };
 
     const toBase64 = utf8String => {
         const bytes = new TextEncoder().encode(utf8String);
         return window.btoa(String.fromCharCode.apply(null, bytes));
     };
+
+    const getBase64SVG = (svg, width, height) => toBase64(getSVGstring(svg, width, height));
 
     const exportImage = (event, exporter, imagemodeselected, userimagesize) => {
         const canvas = document.createElement('canvas');
@@ -718,32 +717,50 @@ const exporter = (() => {
         };
     };
 
-    const clipboardCopy = (context, image) => {
+    const tryWriteToClipboard = blob => {
+        try {
+            if (!blob) throw new Error('blob is empty');
+            void navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+            return true;
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    };
+
+    const copyPNG = (context, image) => {
         return () => {
             const { canvas } = context;
             context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-                try {
-                    if (!blob) {
-                        throw new Error('blob is empty');
-                    }
-                    void navigator.clipboard.write([
-                        new ClipboardItem({
-                            [blob.type]: blob
-                        })
-                    ]);
-                } catch (error) {
-                    console.error(error);
-                }
-            });
+            canvas.toBlob(blob => { tryWriteToClipboard(blob); });
         };
+    };
+
+    const tryWriteTextToClipboard = async text => {
+        try {
+            if (!text) throw new Error('text is empty');
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (error) {
+            console.error(error);
+            return false;
+        }
+    };
+
+    const copyText = async (event, text) => {
+        if (await tryWriteTextToClipboard(text)) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
     };
 
     return {
         isClipboardAvailable: () => hasProperty(window, 'ClipboardItem'),
-        onCopyClipboard: (event, imagemodeselected, userimagesize) => {
-            exportImage(event, clipboardCopy, imagemodeselected, userimagesize);
+        onCopyPNG: (event, imagemodeselected, userimagesize) => {
+            exportImage(event, copyPNG, imagemodeselected, userimagesize);
         },
+        onCopySVG: event => { void copyText(event, getSVGstring()); },
+        onCopyMMD: (event, diagram) => { void copyText(event, diagram); },
         onDownloadPNG: (event, imagemodeselected, userimagesize) => {
             exportImage(event, downloadImage, imagemodeselected, userimagesize);
         },
@@ -765,6 +782,7 @@ const exportOptions = (() => {
         copyBtn = getById('copy'),
         saveAs = 'saveAs',
         png = 'png',
+        svg = 'svg',
 
         open = () => {
             wereOpened = true;
@@ -777,9 +795,17 @@ const exportOptions = (() => {
 
             if (!exporter.isClipboardAvailable()) notify('The clipboard seems unavailable in this browser :(');
             else {
+                const type = radios.getValue(saveAs);
+
                 try {
-                    exporter.onCopyClipboard(event);
-                    notify('An image of the diagram is in your clipboard.');
+                    if (type === png) {
+                        const [dimension, size] = getDimensions();
+                        exporter.onCopyPNG(event, dimension, size);
+                    }
+                    else if (type === svg) exporter.onCopySVG(event);
+                    else exporter.onCopyMMD(event, mermaidExtensions.getDiagram());
+
+                    notify(`The diagram ${type.toUpperCase()} is in your clipboard.`);
                 } catch (e) {
                     notify(e.toString());
                 }
@@ -793,7 +819,7 @@ const exportOptions = (() => {
                 const [dimension, size] = getDimensions();
                 exporter.onDownloadPNG(event, dimension, size);
             }
-            else if (type === 'svg') exporter.onDownloadSVG();
+            else if (type === svg) exporter.onDownloadSVG();
             else exporter.onDownloadMMD(mermaidExtensions.getDiagram());
         };
 

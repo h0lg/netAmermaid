@@ -87,20 +87,24 @@
             </div>
 
             <div id="exportOptions" class="scndry vertical collapse aligned spaced flx col">
-                <button type="button" id="copy" title="[Ctrl + C] Copies a base-64 encoded PNG version of the diagram into your clipboard for you to paste directly into a messenger, word- or image processor.">📋 Copy image to clipboard</button>
 
-                <div class="flx" title="Note that you can also use your browser's Print function [Ctrl + P] to export to PDF or paper or split up the diagram into multiple pages.">
-                    <button type="button" id="save" data-assembly="{{assembly}}" title="[Ctrl + S]">💾 Save</button>
+                <div class="flx gap" title="Note that you can also use your browser's Print function [Ctrl + P] to export to PDF or paper or split up the diagram into multiple pages.">
+                    <button type="button" id="save" data-assembly="{{assembly}}" title="[Ctrl + S] Saves the diagram in the selected format using a generated name.">💾 Save</button>
+                    <label>or</label>
+                    <button type="button" id="copy" title="[Ctrl + C] Copies the diagram in the selected format to your clipboard for you to paste directly into a messenger, word- or image processor.">📋 Copy to clipboard</button>
+                </div>
+
+                <div class="flx">
                     <label>as</label>
-                    <input type="radio" name="saveAs" value="svg" id="saveAs-svg" checked />
+                    <input type="radio" name="saveAs" value="svg" id="saveAs-svg" title="Extports the diagram as SVG to render in an HTML document or SVG-enabled word processor." />
                     <label for="saveAs-svg">svg</label>
-                    <input type="radio" name="saveAs" value="png" id="saveAs-png" />
+                    <input type="radio" name="saveAs" value="png" id="saveAs-png" checked title="Exports the the diagram as a base-64 encoded PNG." />
                     <label for="saveAs-png">png</label>
-                    <input type="radio" name="saveAs" value="mmd" id="saveAs-mmd" />
+                    <input type="radio" name="saveAs" value="mmd" id="saveAs-mmd" title="Extports the mermaid syntax for the diagram." />
                     <label for="saveAs-mmd">mmd</label>
                 </div>
 
-                <div id="dimensions" class="vertical collapse">
+                <div id="dimensions" class="vertical open collapse">
                     <fieldset title="Applied when saving and in (unscalable) image format. Note these settings indirectly determine the resolution.">
                         <legend>png dimensions</legend>
 
