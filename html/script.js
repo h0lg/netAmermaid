@@ -1,6 +1,5 @@
 // see CDN example https://mermaid.js.org/intro/n00b-gettingStarted.html#_3-calling-the-javascript-api
 import mermaid from 'https://unpkg.com/mermaid@10.0.2/dist/mermaid.esm.min.mjs';
-import { toBase64 } from 'https://unpkg.com/js-base64@3.7.5/base64.mjs';
 
 const getById = id => document.getElementById(id),
     triggerChangeOn = element => { element.dispatchEvent(new Event('change')); },
@@ -529,6 +528,11 @@ const exporter = (() => {
             .replaceAll('<br>', '<br/>')
             .replaceAll(/<img([^>]*)>/g, (m, g) => `<img ${g} />`);
         return toBase64(svgString);
+    };
+
+    const toBase64 = utf8String => {
+        const bytes = new TextEncoder().encode(utf8String);
+        return window.btoa(String.fromCharCode.apply(null, bytes));
     };
 
     const exportImage = (event, exporter, imagemodeselected, userimagesize) => {
