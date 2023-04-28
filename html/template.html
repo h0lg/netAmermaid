@@ -25,7 +25,7 @@
     <div id="content" class="flx">
         <form id="filter" class="flx col open">
             <div class="flx">
-                <label for="typeFilter" class="grow">Select the types to include:</label>
+                <label for="type-select" class="grow">Select the types to include:</label>
                 <button type="button" id="info-toggle" title="toggle help">ℹ</button>
             </div>
 
@@ -60,7 +60,7 @@
                 </p>
             </div>
 
-            <select multiple id="typeFilter" class="grow"></select>
+            <select multiple id="type-select" class="grow"></select>
 
             <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
                 <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />

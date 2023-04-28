@@ -383,7 +383,7 @@ const state = (() => {
         if (data.d) layoutDirection.set(data.d);
 
         if (data.t) {
-            typeFilter.setSelected(data.t);
+            typeSelector.setSelected(data.t);
             await render(true);
         }
     };
@@ -410,7 +410,7 @@ const state = (() => {
 
     return {
         update: () => {
-            const types = typeFilter.getSelected(),
+            const types = typeSelector.getSelected(),
                 t = Object.keys(types),
                 d = layoutDirection.get(),
                 data = { t, d },
@@ -428,8 +428,8 @@ const state = (() => {
     };
 })();
 
-const typeFilter = (() => {
-    const select = getById('typeFilter'),
+const typeSelector = (() => {
+    const select = getById('type-select'),
         renderBtn = getById('render'),
         typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML);
 
@@ -530,7 +530,7 @@ const layoutDirection = (() => {
 
 const render = async isRestoringState => {
     const { diagram, detailedTypes, xmlDocs } = mermaidExtensions.processTypes(
-        typeFilter.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
+        typeSelector.getSelected(), layoutDirection.get(), baseTypeInheritanceFilter.getRegex());
 
     console.info(diagram);
 
@@ -545,7 +545,7 @@ const render = async isRestoringState => {
 
         onTypeClick: async (event, name) => {
             // toggle selection and re-render on clicking entity
-            typeFilter.toggleOption(name);
+            typeSelector.toggleOption(name);
             await render();
         }
     });
@@ -814,11 +814,11 @@ document.onkeydown = async (event) => {
 
     if (event.altKey) {
         // enable moving selected types up and down using arrow keys while holding [Alt]
-        const moveUp = event.key === arrowUp ? true : event.key === arrowDown ? false : null;
+        const upOrDown = event.key === arrowUp ? true : event.key === arrowDown ? false : null;
 
-        if (moveUp !== null) {
-            typeFilter.focus();
-            typeFilter.moveSelection(moveUp);
+        if (upOrDown !== null) {
+            typeSelector.focus();
+            typeSelector.moveSelection(upOrDown);
             event.preventDefault();
             return;
         }
@@ -826,5 +826,5 @@ document.onkeydown = async (event) => {
 };
 
 mermaidExtensions.init({ startOnLoad: false }); // initializes mermaid as well
-typeFilter.focus(); // focus type filter initially to enable keyboard input
+typeSelector.focus(); // focus type filter initially to enable keyboard input
 await state.restore();
