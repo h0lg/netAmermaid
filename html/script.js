@@ -422,28 +422,6 @@ const typeFilter = (() => {
     };
 })();
 
-const lastRenderedTypes = (() => {
-    let types;
-
-    const hasAny = () => types.length > 0,
-        restore = getById('restore-last-rendered'),
-
-        set = values => {
-            types = values;
-            restore.hidden = !hasAny();
-        };
-
-    set([]); // to initialize
-
-    // enable restoring last rendered type selection
-    restore.onclick = () => {
-        typeFilter.setSelected(types);
-        typeFilter.focus(); // re-focus to make continuing work easier
-    };
-
-    return { set, hasAny };
-})();
-
 const baseTypeInheritanceFilter = (() => {
     const checkbox = getById('show-base-types'),
         baseTypeRegex = checkbox.dataset.baseTypeRegex,
@@ -499,7 +477,6 @@ const render = async isRestoringState => {
         }
     });
 
-    lastRenderedTypes.set(detailedTypes);
     exportOptions.enable(detailedTypes.length > 0);
     if (!isRestoringState) state.update();
 };
@@ -662,8 +639,8 @@ const exportOptions = (() => {
         },
 
         copy = event => {
-            // allow the default for copying text if no types are rendered
-            if (!lastRenderedTypes.hasAny()) return;
+            // allow the default for copying text if no types are rendered, using toggle visibility as indicator
+            if (toggle.hidden) return;
 
             if (!exporter.isClipboardAvailable()) notify('The clipboard seems unavailable in this browser :(');
             else {

@@ -50,8 +50,10 @@
                     Use <b>[Alt] + [Arrow Up|Down] to move</b> selected types.
                 </p>
                 <p>
-                    Lastly, you can <b>copy and save your diagrams</b> - but you don't have to.
-                    You can just <b>share the URL</b> to your type selection with whoever has access to this diagrammer.
+                    Lastly, note that your rendered type selection (as well as rendering options) are recorded in your browser history
+                    and update the URL in the location bar. That means you can <b>access earlier diagrams</b>,
+                    <b>restore your type selection</b> using Refresh [F5] if you lose it by misclicking
+                    and <b>bookmark or share the URL</b> to your type selection with whoever has access to this diagrammer.
                 </p>
                 <p>
                     This class diagrammer was generated using <a href="{{repoUrl}}">netAmermaid</a>.
@@ -60,14 +62,10 @@
 
             <select multiple id="typeFilter" class="grow"></select>
 
-            <p class="spaced aligned flx">
-                <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
-                    <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />
-                    <label for="show-base-types">show base types</label>
-                </span>
-                <button type="button" id="restore-last-rendered" hidden
-                        title="restore last rendered type selection (in case you lose it by mis-clicking)">↶</button>
-            </p>
+            <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
+                <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />
+                <label for="show-base-types">show base types</label>
+            </span>
 
             <fieldset id="direction" class="scndry flx" title="[Ctrl + arrow keys] You may want to change this depending on your screen or printer and the size of the diagram.">
                 <legend>layout direction</legend>
