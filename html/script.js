@@ -304,6 +304,11 @@ const mermaidExtensions = (() => {
                 getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
                 isRendered = type => detailedTypes.includes(type),
 
+                cleanUpDiagramMmd = mmd => mmd
+                    // remove redundant labels
+                    .replace(/^class (\w+) \[".+"\]$/gm, (match, type) => detailedTypes.includes(type) ? '' : match)
+                    .replace(/(\r?\n){3,}/g, '\n\n'), // squash more than two consecutive line breaks down into two
+
                 // renders base type and interfaces depending on settings and selected types
                 renderSuperTypes = (definitionsByTypeId, displayAll) => {
                     if (definitionsByTypeId) // expecting object; only process if not null or undefined
@@ -346,6 +351,7 @@ const mermaidExtensions = (() => {
                     renderInheritedMembers(details);
             }
 
+            diagram = cleanUpDiagramMmd(diagram);
             lastRenderedDiagram = diagram;
             return { diagram, detailedTypes, xmlDocs };
         },
