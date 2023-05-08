@@ -298,27 +298,40 @@ const mermaidExtensions = (() => {
          * @param {object} showInherited A regular expression matching things to exclude from the diagram definition.
          * @returns
          */
-        processTypes: (typeDetails, direction, showInherited) => {
+        processTypes: (typeDetails, getTypeLabel, direction, showInherited) => {
             const detailedTypes = Object.keys(typeDetails), // types that will be rendered including their members and relations
                 xmlDocs = {}, // to be appended with docs of selected types below
                 getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
                 isRendered = type => detailedTypes.includes(type),
 
-                cleanUpDiagramMmd = mmd => mmd
-                    // remove redundant labels
-                    .replace(/^class (\w+) \[".+"\]$/gm, (match, type) => detailedTypes.includes(type) ? '' : match)
-                    .replace(/(\r?\n){3,}/g, '\n\n'), // squash more than two consecutive line breaks down into two
+                mayNeedLabelling = new Set(),
+
+                cleanUpDiagramMmd = mmd => mmd.replace(/(\r?\n){3,}/g, '\n\n'), // squash more than two consecutive line breaks down into two
 
                 // renders base type and interfaces depending on settings and selected types
-                renderSuperTypes = (definitionsByTypeId, displayAll) => {
-                    if (definitionsByTypeId) // expecting object; only process if not null or undefined
-                        for (let [typeId, definition] of Object.entries(definitionsByTypeId))
-                            /* display relation arrow if either the user chose to display this kind of super type
-                                or the super type is selected to be rendered anyway and we might as well for completeness */
-                            if (displayAll || isRendered(typeId)) diagram += definition + '\n\n';
+                renderSuperType = (supertTypeId, link, typeId, name, displayAll) => {
+                    /* display relation arrow if either the user chose to display this kind of super type
+                        or the super type is selected to be rendered anyway and we might as well for completeness */
+                    if (displayAll || isRendered(supertTypeId)) {
+                        const label = name ? ' : ' + name : '';
+                        diagram += `${supertTypeId} <|${link} ${typeId}${label}\n`;
+                        mayNeedLabelling.add(supertTypeId);
+                    }
                 },
 
-                renderInheritedMembers = details => {
+                // renders HasOne and HasMany relations
+                renderRelations = (typeId, relations, many) => {
+                    if (relations) // expecting object; only process if not null or undefined
+                        for (let [label, relatedId] of Object.entries(relations)) {
+                            const nullable = label.endsWith(' ?');
+                            const cardinality = many ? '"*" ' : nullable ? '"?" ' : '';
+                            if (nullable) label = label.substring(0, label.length - 2); // nullability is expressed via cardinality
+                            diagram += `${typeId} --> ${cardinality}${relatedId} : ${label}\n`;
+                            mayNeedLabelling.add(relatedId);
+                        }
+                },
+
+                renderInheritedMembers = (typeId, details) => {
                     const ancestorTypes = getAncestorTypes(details);
 
                     // only include inherited members in sub classes if they aren't already rendered in a super class
@@ -331,7 +344,9 @@ const mermaidExtensions = (() => {
                             .reduce((union, ancestors) => union.concat(ancestors), []); // squash them into a one-dimensional array (ignoring duplicates)
 
                         if (renderedInheritedProps.includes(ancestorType)) continue;
-                        diagram += members + '\n\n';
+                        diagram += members.FlatMembers + '\n';
+                        renderRelations(typeId, members.HasOne);
+                        renderRelations(typeId, members.HasMany, true);
                     }
                 };
 
@@ -342,13 +357,27 @@ const mermaidExtensions = (() => {
 
             // process selected types
             for (let [typeId, details] of Object.entries(typeDetails)) {
+                mayNeedLabelling.add(typeId);
                 diagram += details.DiagramDefinition + '\n\n';
-                renderSuperTypes(details.BaseType, showInherited.types);
-                renderSuperTypes(details.Interfaces, showInherited.interfaces);
+
+                if (details.BaseType) // expecting object; only process if not null or undefined
+                    renderSuperType(details.BaseType.To, '--', typeId, details.BaseType.Label, showInherited.types);
+
+                if (details.Interfaces) // expecting object; only process if not null or undefined
+                    for (let [ifaceId, label] of Object.entries(details.Interfaces))
+                        renderSuperType(ifaceId, '..', typeId, label, showInherited.interfaces);
+
+                renderRelations(typeId, details.HasOne);
+                renderRelations(typeId, details.HasMany, true);
                 xmlDocs[typeId] = details.XmlDocs;
 
                 if (showInherited.members && details.InheritedMembersByDeclaringType)
-                    renderInheritedMembers(details);
+                    renderInheritedMembers(typeId, details);
+            }
+
+            for (let typeId of mayNeedLabelling) {
+                const label = getTypeLabel(typeId);
+                if (label !== typeId) diagram += `class ${typeId} ["${label}"]\n`;
             }
 
             diagram = cleanUpDiagramMmd(diagram);
@@ -394,7 +423,7 @@ const mermaidExtensions = (() => {
                         // matches only whole words in front of method signatures starting with (
                         const memberName = new RegExp(`(?<!.*\\(.*)\\b${member}\\b`),
                             matchingLabels = ownLabels.filter(l => memberName.test(l.textContent)),
-                            related = relationLabels.find(l => memberName.test(l.textContent));
+                            related = relationLabels.find(l => l.textContent === member);
 
                         if (related) matchingLabels.push(related);
 
@@ -475,13 +504,13 @@ const typeSelector = (() => {
     const select = getById('type-select'),
         preFilter = getById('pre-filter-types'),
         renderBtn = getById('render'),
-        typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML),
+        model = JSON.parse(getById('model').innerHTML),
         tags = { optgroup: 'OPTGROUP', option: 'option' },
         getNamespace = option => option.parentElement.nodeName === tags.optgroup ? option.parentElement.label : '',
         getOption = typeId => select.querySelector(tags.option + `[value='${typeId}']`);
 
     // fill select list
-    for (let [namespace, types] of Object.entries(typeDefsByNamespace)) {
+    for (let [namespace, types] of Object.entries(model.Namespaces)) {
         let optionParent;
 
         if (namespace) {
@@ -492,9 +521,12 @@ const typeSelector = (() => {
         } else optionParent = select;
 
         for (let typeId of Object.keys(types)) {
-            const option = document.createElement(tags.option);
+            const type = types[typeId],
+                option = document.createElement(tags.option);
+
             option.value = typeId;
-            option.innerText = types[typeId].Name;
+            if (!type.Name) type.Name = typeId; // set omitted label to complete structure
+            option.innerText = type.Name;
             optionParent.appendChild(option);
         }
     }
@@ -537,7 +569,7 @@ const typeSelector = (() => {
          *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values. */
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
             const namespace = getNamespace(option), typeId = option.value,
-                details = typeDefsByNamespace[namespace][typeId];
+                details = model.Namespaces[namespace][typeId];
 
             return [typeId, details];
         })),
@@ -552,6 +584,12 @@ const typeSelector = (() => {
                     option.parentElement.insertBefore(option, option.nextElementSibling.nextElementSibling);
                 }
             }
+        },
+
+        //TODO add method returning namespace to add to title
+        getLabel: typeId => {
+            const option = getOption(typeId);
+            return option ? option.innerText : model.OutsideReferences[typeId];
         }
     };
 })();
@@ -599,7 +637,7 @@ const layoutDirection = (() => {
 
 const render = async isRestoringState => {
     const { diagram, detailedTypes, xmlDocs } = mermaidExtensions.processTypes(
-        typeSelector.getSelected(), layoutDirection.get(), inheritanceFilter.getFlags());
+        typeSelector.getSelected(), typeSelector.getLabel, layoutDirection.get(), inheritanceFilter.getFlags());
 
     console.info(diagram);
 

@@ -15,8 +15,6 @@ namespace NetAmermaid
     /// <summary>Produces mermaid class diagram syntax for a filtered list of types from a specified .Net assembly.</summary>
     public class ClassDiagrammerFactory
     {
-        private static readonly string twoLineBreaks = Environment.NewLine + Environment.NewLine;
-
         private readonly XmlDocumentationFormatter? xmlDocs;
         private readonly DecompilerSettings decompilerSettings;
         private readonly CSharpDecompiler decompiler;
@@ -24,6 +22,7 @@ namespace NetAmermaid
         private ITypeDefinition[]? selectedTypes;
         private Dictionary<IType, string>? uniqueIds;
         private Dictionary<IType, string>? labels;
+        private Dictionary<string, string>? outsideReferences;
 
         public ClassDiagrammerFactory(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
         {
@@ -48,6 +47,7 @@ namespace NetAmermaid
             // generate dict to read names from later
             uniqueIds = GenerateUniqueIds(selectedTypes);
             labels = new();
+            outsideReferences = new();
 
             var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new CD.Namespace
             {
@@ -57,7 +57,7 @@ namespace NetAmermaid
             }).OrderBy(ns => ns.Name).ToArray();
 
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
-            return new CD { Namespaces = namespaces, Excluded = excluded };
+            return new CD { Namespaces = namespaces, OutsideReferences = outsideReferences, Excluded = excluded };
         }
 
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)
@@ -98,8 +98,8 @@ namespace NetAmermaid
             return new CD.Type
             {
                 Id = typeId,
-                Name = name,
-                DiagramDefinition = $"class {typeId} [\"{name}\"] {{{body}}}",
+                Name = name == typeId ? null : name,
+                DiagramDefinition = $"class {typeId} {{{body}}}",
                 XmlDocs = docs
             };
         }
@@ -141,11 +141,6 @@ namespace NetAmermaid
             string? annotation = type.IsInterface() ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
 
             string body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + Environment.NewLine;
-
-            string relationships = FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(type))
-                .Concat(FormatHasManyRelations(typeId, hasManyRelationsByType.GetValue(type)))
-                .Where(line => !string.IsNullOrEmpty(line))
-                .Join(Environment.NewLine);
             #endregion
 
             Dictionary<string, string>? docs = xmlDocs?.GetXmlDocs(type, fields, properties, methods);
@@ -154,27 +149,34 @@ namespace NetAmermaid
             string explicitTypePrefix = typeId + " : ";
 
             // get ancestor types this one is inheriting members from
-            Dictionary<string, string> inheritedMembersByType = type.GetNonInterfaceBaseTypes().Where(t => t != type && !t.IsObject())
+            Dictionary<string, CD.Type.InheritedMembers> inheritedMembersByType = type.GetNonInterfaceBaseTypes().Where(t => t != type && !t.IsObject())
                 // and group inherited members by declaring type
-                .ToDictionary(GetId, t => flatPropertiesByType.GetValue(t).FormatAll(p => explicitTypePrefix + FormatFlatProperty(p))
-                    .Concat(methodsByType.GetValue(t).FormatAll(m => explicitTypePrefix + FormatMethod(m)))
-                    .Concat(fieldsByType.GetValue(t).FormatAll(f => explicitTypePrefix + FormatField(f)))
-                    .Concat(FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(t)))
-                    .Concat(FormatHasManyRelations(typeId, hasManyRelationsByType.GetValue(t)))
-                    .Join(Environment.NewLine));
+                .ToDictionary(GetId, t =>
+                {
+                    IEnumerable<string> flatMembers = flatPropertiesByType.GetValue(t).FormatAll(p => explicitTypePrefix + FormatFlatProperty(p))
+                        .Concat(methodsByType.GetValue(t).FormatAll(m => explicitTypePrefix + FormatMethod(m)))
+                        .Concat(fieldsByType.GetValue(t).FormatAll(f => explicitTypePrefix + FormatField(f)));
+
+                    return new CD.Type.InheritedMembers
+                    {
+                        FlatMembers = flatMembers.Any() ? flatMembers.Join(Environment.NewLine) : null,
+                        HasOne = MapHasOneRelations(hasOneRelationsByType, t),
+                        HasMany = MapHasManyRelations(hasManyRelationsByType, t)
+                    };
+                });
             #endregion
 
             string typeName = GetName(type);
-            (string? baseTypeId, string? baseTypeDefinition) = FormatBaseType(type, typeId) ?? default;
-            Dictionary<string, string>? interfaces = FormatInterfaces(type, typeId);
 
             return new CD.Type
             {
                 Id = typeId,
-                Name = typeName,
-                DiagramDefinition = $"class {typeId} [\"{typeName}\"] {{{body}}}" + twoLineBreaks + relationships,
-                BaseType = baseTypeDefinition == default ? null : new() { { baseTypeId, baseTypeDefinition } },
-                Interfaces = interfaces,
+                Name = typeName == typeId ? null : typeName,
+                DiagramDefinition = $"class {typeId} {{{body}}}",
+                HasOne = MapHasOneRelations(hasOneRelationsByType, type),
+                HasMany = MapHasManyRelations(hasManyRelationsByType, type),
+                BaseType = GetBaseType(type),
+                Interfaces = GetInterfaces(type)?.ToArray(),
                 InheritedMembersByDeclaringType = inheritedMembersByType,
                 XmlDocs = docs
             };
@@ -204,40 +206,39 @@ namespace NetAmermaid
                 return isGeneric == true && selectedTypes!.Contains(elementType) ? (property, elementType) : default;
             }).Where(pair => pair != default).ToArray();
 
-        private (string, string)? FormatBaseType(IType type, string typeId)
+        private void AddOutsideReference(string typeId, IType type)
+        {
+            if (!selectedTypes!.Contains(type) && outsideReferences?.ContainsKey(typeId) == false)
+                outsideReferences.Add(typeId, type.Namespace + '.' + GetName(type));
+        }
+
+        private CD.Relationship? GetBaseType(IType type)
         {
             IType? relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t => !t.IsInterface() && !t.IsObject());
-
-            if (relevantBaseType == null) return default;
-            string baseTypeId = GetId(relevantBaseType);
-            var parameterized = relevantBaseType as ParameterizedType;
-            string? relationLabel = parameterized == null ? null : $" : {GetName(relevantBaseType)}";
-            string relatedLabel = LabelRelated(parameterized?.GenericType ?? relevantBaseType, baseTypeId);
-            return (baseTypeId, $"{baseTypeId} <|-- {typeId}" + relationLabel + relatedLabel);
+            return relevantBaseType == null ? default : BuildRelationship(relevantBaseType);
         }
 
-        private Dictionary<string, string>? FormatInterfaces(ITypeDefinition type, string typeId)
+        private IEnumerable<CD.Relationship>? GetInterfaces(ITypeDefinition type)
         {
             var interfaces = type.DirectBaseTypes.Where(t => t.IsInterface()).ToArray();
-            if (interfaces.Length == 0) return null;
-
-            return interfaces.Select(iface =>
-            {
-                string interfaceId = GetId(iface);
-                return (interfaceId, definition: $"{interfaceId} <|.. {typeId}" + LabelRelated(iface, interfaceId));
-            }).ToDictionary(t => t.interfaceId, t => t.definition);
+            return interfaces.Length == 0 ? null : interfaces.Select(i => BuildRelationship(i));
         }
 
-        private IEnumerable<string> FormatHasManyRelations(string typeId, IEnumerable<(IProperty, IType)>? relations)
-            => relations.FormatAll(relation =>
-            {
-                (IProperty property, IType elementType) = relation;
-                string relatedId = GetId(elementType);
-                return $@"{typeId} --> ""*"" {relatedId} : {property.Name}" + LabelRelated(elementType, relatedId);
-            });
+        /// <summary>Builds references to super types and (one/many) relations,
+        /// recording outside references on the way and applying labels if required.</summary>
+        /// <param name="type">The type to reference.</param>
+        /// <param name="propertyName">Used only for property one/many relations.</param>
+        private CD.Relationship BuildRelationship(IType type, string? propertyName = null)
+        {
+            (string id, IType? openGeneric) = GetIdAndOpenGeneric(type);
+            AddOutsideReference(id, openGeneric ?? type);
 
-        private IEnumerable<string> FormatHasOneRelations(string typeId, IEnumerable<IProperty>? relations)
-            => relations.FormatAll(p =>
+            // label the relation with the property name if provided or the closed generic type for super types
+            return new CD.Relationship { To = id, Label = propertyName ?? (openGeneric == null ? null : GetName(type)) };
+        }
+
+        private CD.Relationship[]? MapHasOneRelations(Dictionary<IType, IProperty[]> hasOneRelationsByType, IType type)
+            => hasOneRelationsByType.GetValue(type)?.Select(p =>
             {
                 IType type = p.ReturnType;
                 string label = p.Name;
@@ -248,11 +249,15 @@ namespace NetAmermaid
                     label += " ?";
                 }
 
-                string id = GetId(type);
-                return $"{typeId} --> {id} : {label}" + LabelRelated(type, id);
-            });
+                return BuildRelationship(type, label);
+            }).ToArray();
 
-        private string LabelRelated(IType type, string typeId) => Environment.NewLine + $"class {typeId} [\"{GetName(type)}\"]";
+        private CD.Relationship[]? MapHasManyRelations(Dictionary<IType, (IProperty property, IType elementType)[]> hasManyRelationsByType, IType type)
+            => hasManyRelationsByType.GetValue(type)?.Select(relation =>
+            {
+                (IProperty property, IType elementType) = relation;
+                return BuildRelationship(elementType, property.Name);
+            }).ToArray();
 
         private string FormatMethod(IMethod method)
         {
@@ -283,17 +288,27 @@ namespace NetAmermaid
             return $"{GetAccessibility(field.Accessibility)}{GetName(field.ReturnType)} {field.Name}{modifier}";
         }
 
-        private string GetId(IType type)
+        private string GetId(IType type) => GetIdAndOpenGeneric(type).Item1;
+
+        /// <summary>For a non- or open generic <paramref name="type"/>, returns a unique identifier and null.
+        /// For a closed generic <paramref name="type"/>, returns the open generic type and the unique identifier of it.
+        /// That helps connecting closed generic references (e.g. Store&lt;int>) to their corresponding
+        /// open generic <see cref="CD.Type"/> (e.g. Store&lt;T>) like in <see cref="BuildRelationship(IType, string?)"/>.</summary>
+        private (string id, IType? openGeneric) GetIdAndOpenGeneric(IType type)
         {
-            if (type is ParameterizedType generic) type = generic.GenericType; // reference open instead of closed generic type
-            if (uniqueIds?.TryGetValue(type, out var uniqueName) == true) return uniqueName; // types included by FilterTypes
+            var openGeneric = type is ParameterizedType closed ? closed.GenericType : null;
+            type = openGeneric ?? type; // reference open instead of closed generic type
+            if (uniqueIds!.TryGetValue(type, out var uniqueId)) return (uniqueId, openGeneric); // types included by FilterTypes
 
             // types excluded by FilterTypes
             string? typeParams = type.TypeParameterCount == 0 ? null : ("_" + type.TypeParameters.Select(GetId).Join("_"));
 
-            return type.FullName.Replace('.', '_')
+            var id = type.FullName.Replace('.', '_')
                 .Replace('<', '_').Replace('>', '_') // for module
                 + typeParams; // to achive uniqueness for types with same FullName (i.e. generic overloads)
+
+            uniqueIds![type] = id; // update dictionary to avoid re-generation
+            return (id, openGeneric);
         }
 
         private string GetName(IType type)

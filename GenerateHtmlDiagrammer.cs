@@ -62,19 +62,31 @@ namespace NetAmermaid
             ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
             var diagrammer = factory.BuildModel(Include, Exclude);
 
-            // convert collections to dictionaries for easier access in JS
-            var typeDefsByNamespace = diagrammer.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
-                ns => ns.Types.ToDictionary(t => t.Id, t => new
-                {
-                    t.Name,
-                    t.DiagramDefinition,
-                    t.BaseType,
-                    t.Interfaces,
-                    t.InheritedMembersByDeclaringType,
-                    t.XmlDocs
-                }));
+            var jsonModel = new
+            {
+                diagrammer.OutsideReferences,
 
-            var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
+                // convert collections to dictionaries for easier access in JS
+                Namespaces = diagrammer.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
+                    ns => ns.Types.ToDictionary(t => t.Id, t => new
+                    {
+                        t.Name,
+                        t.DiagramDefinition,
+                        HasOne = t.HasOne?.ToDictionary(r => r.Label!, r => r.To),
+                        HasMany = t.HasMany?.ToDictionary(r => r.Label!, r => r.To),
+                        t.BaseType,
+                        Interfaces = t.Interfaces?.ToDictionary(r => r.To, r => r.Label),
+                        InheritedMembersByDeclaringType = t.InheritedMembersByDeclaringType?.ToDictionary(p => p.Key, p => new
+                        {
+                            p.Value.FlatMembers,
+                            HasOne = p.Value.HasOne?.ToDictionary(r => r.Label!, r => r.To),
+                            HasMany = p.Value.HasMany?.ToDictionary(r => r.Label!, r => r.To)
+                        }),
+                        t.XmlDocs
+                    }))
+            };
+
+            var modelJson = JsonSerializer.Serialize(jsonModel, new JsonSerializerOptions
             {
                 WriteIndented = true,
                 // avoid outputting null properties unnecessarily
@@ -90,7 +102,7 @@ namespace NetAmermaid
                 .Replace("{{assemblyVersion}}", factory.GetLoadedAssemblyVersion())
                 .Replace("{{builderVersion}}", AssemblyInfo.Version)
                 .Replace("{{repoUrl}}", RepoUrl)
-                .Replace("{{typeDefinitionsByNamespace}}", typeDefsJson)
+                .Replace("{{model}}", modelJson)
                 .Replace("{{script}}", script);
 
             if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
