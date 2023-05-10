@@ -372,9 +372,13 @@ const mermaidExtensions = (() => {
 
                         if (matchingLabels.length === 0) console.error(
                             `Expected to find either a member or relation label for ${title.textContent}.${member} to attach the XML documentation to but found none.`);
-                        else if (matchingLabels.length > 1) console.error(
-                            `Expected to find one member or relation label for ${title.textContent}.${member} to attach the XML documentation to but found multiple. Applying the first.`, matchingLabels);
-                        else documentOwnLabel(matchingLabels[0], member);
+                        else {
+                            if (matchingLabels.length > 1) console.warn(
+                                `Expected to find one member or relation label for ${title.textContent}.${member}`
+                                + ' to attach the XML documentation to but found multiple. Applying the first.', matchingLabels);
+
+                            documentOwnLabel(matchingLabels[0], member);
+                        }
                     }
                 }
 
