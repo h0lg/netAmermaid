@@ -60,6 +60,8 @@ namespace NetAmermaid
 
     internal static class DictionaryExtensions
     {
+        /// <summary>Returns the <paramref name="dictionary"/>s value for the specified <paramref name="key"/>
+        /// if available and otherwise the default for <typeparamref name="Tout"/>.</summary>
         internal static Tout? GetValue<T, Tout>(this IDictionary<T, Tout> dictionary, T key)
             => dictionary.ContainsKey(key) ? dictionary[key] : default;
     }
