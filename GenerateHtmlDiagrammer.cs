@@ -113,7 +113,7 @@ namespace NetAmermaid
 
         public virtual Type[] FilterTypes(Assembly assembly) => assembly.GetTypes().ExceptCompilerGenerated().ToArray();
 
-        public virtual string GetPath(string pathOrUri)
+        private protected virtual string GetPath(string pathOrUri)
         {
             // convert file:// style argument, see https://stackoverflow.com/a/38245329
             if (!Uri.TryCreate(pathOrUri, UriKind.RelativeOrAbsolute, out Uri? uri))
