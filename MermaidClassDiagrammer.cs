@@ -106,7 +106,7 @@ namespace NetAmermaid
             #endregion
 
             #region build diagram definitions for the type itself and members declared by it
-            var members = flatPropertiesByType.GetValue(type).FormatAll(FormatFlatProperty)
+            string members = flatPropertiesByType.GetValue(type).FormatAll(FormatFlatProperty)
                 .Concat(methodsByType.GetValue(type).FormatAll(FormatMethod))
                 .Concat(fieldsByType.GetValue(type).FormatAll(FormatField))
                 .Join(Environment.NewLine + "    ", pad: true);

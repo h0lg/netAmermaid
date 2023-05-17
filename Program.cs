@@ -14,7 +14,7 @@ const string asciiHeading = @"
 try
 {
     // set HelpWriter null to enable customizing help text, see below
-    var parserResult = new Parser(with => with.HelpWriter = null).ParseArguments<GenerateHtmlDiagrammer>(args);
+    ParserResult<GenerateHtmlDiagrammer> parserResult = new Parser(with => with.HelpWriter = null).ParseArguments<GenerateHtmlDiagrammer>(args);
 
     parserResult.WithParsed(command =>
     {

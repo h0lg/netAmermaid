@@ -116,7 +116,7 @@ namespace NetAmermaid
         public virtual string GetPath(string pathOrUri)
         {
             // convert file:// style argument, see https://stackoverflow.com/a/38245329
-            if (!Uri.TryCreate(pathOrUri, UriKind.RelativeOrAbsolute, out var uri))
+            if (!Uri.TryCreate(pathOrUri, UriKind.RelativeOrAbsolute, out Uri? uri))
                 throw new ArgumentException("'{0}' is not a valid URI", pathOrUri);
 
             // support absolute paths as well as file:// URIs and interpret relative path as relative to the current directory
