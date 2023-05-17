@@ -102,7 +102,7 @@ namespace NetAmermaid
                 .Replace("{{script}}", script);
 
             if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-            File.WriteAllText(Path.Combine(outputFolder, "class-diagram-generator.html"), html);
+            File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
 
             // copy required resources to output folder
             foreach (var resource in new[] { "styles.css", "netAmermaid.ico" })
