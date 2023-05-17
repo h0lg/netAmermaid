@@ -24,7 +24,7 @@ namespace NetAmermaid
             + $". Set to make displaying repetitive and noisy inheritance details on your diagrams optional via a control in the {diagrammer}.")]
         public string? BaseTypes { get; set; }
 
-        [Option('n', "strip-namespaces", HelpText = "Space-separated namespace names that are removed for brevity when displaying member details." +
+        [Option('n', "strip-namespaces", HelpText = "Space-separated namespace names that are removed for brevity from XML documentation comments." +
             " Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.")]
         public IEnumerable<string>? StrippedNamespaces { get; set; }
 
