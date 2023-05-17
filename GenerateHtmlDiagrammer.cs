@@ -17,7 +17,8 @@ namespace NetAmermaid
             HelpText = $"The path or file:// URI of the .NET assembly to generate a {diagrammer} for.")]
         public string Assembly { get; set; } = null!; // validated to be non-null by Option.Required
 
-        [Option('o', "output-folder", HelpText = $"The path of the folder to generate the {diagrammer} into.")]
+        [Option('o', "output-folder", HelpText = $"The path of the folder to generate the {diagrammer} into." +
+            $" This defaults to a 'netAmermaid' folder in the directory of the '{assembly}', which will be created if required.")]
         public string? OutputFolder { get; set; }
 
         [Option('b', "base-types", HelpText = "A regular expression matching the names of common base types in the " + assembly
@@ -29,7 +30,8 @@ namespace NetAmermaid
         public IEnumerable<string>? StrippedNamespaces { get; set; }
 
         [Option('d', "docs", HelpText = $"The path or file:// URI of the XML file containing the {assembly}'s documentation comments." +
-            $" You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the {assembly}.")]
+            $" You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the '{assembly}'." +
+            $" To enable XML documentation output for your '{assembly}' see https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output .")]
         public string? XmlDocs { get; set; }
 
         [Option('r', "resolve-folders", HelpText = $"Space-separated list of folders to search if assembly lookup fails." +
