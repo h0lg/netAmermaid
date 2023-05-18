@@ -24,8 +24,9 @@
 
     <div id="content" class="flx">
         <form id="filter" class="flx col open">
-            <div class="flx">
-                <label for="type-select" class="grow">Select the types to include:</label>
+            <div class="flx gap">
+                <input id="pre-filter-types" placeholder="pre-filter" class="grow" title="I may look like vanilla-flavored plain text, but listen to ECMAScript-flavoured RegEx 🤓 Focus me with [Ctrl + K]." />
+                <label for="type-select" class="grow">types</label>
                 <button type="button" id="info-toggle" title="toggle help">ℹ</button>
             </div>
 
@@ -60,7 +61,7 @@
                 </p>
             </div>
 
-            <select multiple id="type-select" class="grow"></select>
+            <select multiple id="type-select" class="grow" title="🥢 pick types to include in your diagram"></select>
 
             <span class="scndry flx" title="Render relations to common base types matching {{baseTypeRegex}} . You may find this useful to reason about inheritance, but will probably want to skip that noise when looking at type relations.">
                 <input type="checkbox" id="show-base-types" data-base-type-regex="{{baseTypeRegex}}" />

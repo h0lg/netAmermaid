@@ -430,6 +430,7 @@ const state = (() => {
 
 const typeSelector = (() => {
     const select = getById('type-select'),
+        preFilter = getById('pre-filter-types'),
         renderBtn = getById('render'),
         typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML),
         tags = { optgroup: 'OPTGROUP', option: 'option' },
@@ -456,8 +457,20 @@ const typeSelector = (() => {
     // only enable render button if types are selected
     select.onchange = () => { renderBtn.disabled = select.selectedOptions.length < 1; };
 
+    preFilter.addEventListener('input', () => {
+        const regex = preFilter.value ? new RegExp(preFilter.value, 'i') : null;
+
+        for (let option of select.options)
+            option.hidden = regex !== null && !regex.test(option.innerHTML);
+
+        // toggle option groups hidden depending on whether they have visible children
+        for (let group of select.getElementsByTagName(tags.optgroup))
+            group.hidden = regex !== null && [...group.children].filter(o => !o.hidden).length === 0;
+    });
+
     return {
         focus: () => select.focus(),
+        focusFilter: () => preFilter.focus(),
 
         setSelected: types => {
             for (let option of select.options)
@@ -804,6 +817,11 @@ document.onkeydown = async (event) => {
     if (event.ctrlKey) {
         switch (event.key) {
             case 'b': filterSidebar.toggle(); return;
+            case 'k':
+                event.preventDefault();
+                filterSidebar.open();
+                typeSelector.focusFilter();
+                return;
             case 's': exportOptions.quickSave(event); return;
             case 'c': exportOptions.copy(event); return;
             case 'ArrowLeft': layoutDirection.set('RL', event); return;
