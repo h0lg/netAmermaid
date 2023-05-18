@@ -67,6 +67,41 @@ const output = (function () {
         hasSVG = () => output.childElementCount > 0,
         getSVG = () => hasSVG() ? output.children[0] : null;
 
+    const zoomFactor = 0.1;
+    const panFactor = 10;
+
+    output.addEventListener('wheel', event => {
+        event.preventDefault();
+        if (output.childElementCount === 0) return;
+        const svg = output.children[0];
+        const delta = event.deltaY < 0 ? 1 : -1;
+        const zoomDelta = 1 + zoomFactor * delta;
+        let viewBox = svg.viewBox.baseVal;
+
+        let isZooming = false;
+        let isPanningX = false;
+        let isPanningY = false;
+
+        if (event.ctrlKey) {
+            isZooming = true;
+        } else if (event.altKey) {
+            isPanningX = true;
+        } else if (event.shiftKey) {
+            isPanningY = true;
+        }
+
+        if (isZooming) {
+            viewBox.width *= zoomDelta;
+            viewBox.height *= zoomDelta;
+        } else if (isPanningX) {
+            viewBox.x += delta * panFactor;
+        } else if (isPanningY) {
+            viewBox.y += delta * panFactor;
+        }
+
+        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    });
+
     return {
         setSVG: svg => { output.innerHTML = svg; },
         getSVG
