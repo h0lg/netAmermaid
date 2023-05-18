@@ -56,7 +56,7 @@ const notify = (() => {
         setTimeout(() => {
             toast.classList.add('leaving'); // fades out the message
 
-            // ...and removes it. Note this timeout has to match the animation duration for '.leaving' in the css.
+            // ...and removes it. Note this timeout has to match the animation duration for '.leaving' in the .less file.
             setTimeout(() => { toast.remove(); }, 1000);
         }, 5000);
     };
@@ -237,7 +237,7 @@ const mermaidExtensions = (() => {
                     for (let [ancestorType, members] of Object.entries(details.InheritedMembersByDeclaringType)) {
                         if (detailedTypes.includes(ancestorType)) continue; // inherited members will be rendered in base type
 
-                        // find inherited props already displays by detailed base types
+                        // find inherited props already displayed by detailed base types
                         let renderedInheritedProps = ancestorTypes.filter(t => detailedTypes.includes(t)) // get detailed ancestor types
                             .map(type => getAncestorTypes(typeDetails[type])) // select their ancestor types
                             .reduce((union, ancestors) => union.concat(ancestors), []); // squash them into a one-dimensional array (ignoring duplicates)
