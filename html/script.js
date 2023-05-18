@@ -431,21 +431,23 @@ const state = (() => {
 const typeSelector = (() => {
     const select = getById('type-select'),
         renderBtn = getById('render'),
-        typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML);
+        typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML),
+        tags = { optgroup: 'OPTGROUP', option: 'option' },
+        getOption = typeId => select.querySelector(tags.option + `[value='${typeId}']`);
 
     // fill select list
     for (let [namespace, types] of Object.entries(typeDefsByNamespace)) {
         let optionParent;
 
         if (namespace) {
-            const group = document.createElement('optgroup');
+            const group = document.createElement(tags.optgroup);
             group.label = namespace;
             select.appendChild(group);
             optionParent = group;
         } else optionParent = select;
 
         for (let type of Object.keys(types)) {
-            const option = document.createElement('option');
+            const option = document.createElement(tags.option);
             option.innerText = option.value = type;
             optionParent.appendChild(option);
         }
@@ -465,7 +467,7 @@ const typeSelector = (() => {
         },
 
         toggleOption: name => {
-            const option = select.querySelector(`option[value='${name}']`);
+            const option = getOption(name);
 
             if (option !== null) {
                 option.selected = !option.selected;
@@ -476,7 +478,7 @@ const typeSelector = (() => {
         /** Returns the types selected by the user in the form of an object with the type names for keys
          *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Name) for values. */
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
-            const namespace = option.parentElement.nodeName === 'OPTGROUP' ? option.parentElement.label : '',
+            const namespace = option.parentElement.nodeName === tags.optgroup ? option.parentElement.label : '',
                 type = option.value,
                 details = typeDefsByNamespace[namespace][type];
 
