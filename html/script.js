@@ -326,25 +326,25 @@ const state = (() => {
 
     window.onpopstate = async event => {
         const data = event.state;
-        typeFilter.setSelected(data.types);
+        typeFilter.setSelected(data.t);
         await render(true);
     };
 
     return {
         update: () => {
-            const types = Object.keys(typeFilter.getSelected()),
-                direction = layoutDirection.get(),
-                data = { types, direction };
+            const t = Object.keys(typeFilter.getSelected()),
+                d = layoutDirection.get(),
+                data = { t, d };
 
             history.pushState(data, '', updateQueryString(location.href, data));
         },
         restore: async () => {
             const search = new URLSearchParams(location.search),
-                types = search.getAll('types');
+                types = search.getAll('t');
 
             if (types.length > 0) {
                 typeFilter.setSelected(types);
-                const direction = search.get('direction');
+                const direction = search.get('d');
 
                 if (direction) layoutDirection.set(direction); // renders
                 else await render(true);
