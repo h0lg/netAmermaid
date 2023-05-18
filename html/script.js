@@ -352,7 +352,7 @@ const mermaidExtensions = (() => {
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
-                + 'accTitle: ' + output.getDiagramTitle() + '\n'
+                + 'accTitle: ' + output.getDiagramTitle().replaceAll('\n', '#10;') + '\n'
                 + 'direction ' + direction + '\n\n';
 
             // process selected types
