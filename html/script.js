@@ -62,6 +62,17 @@ const notify = (() => {
     };
 })();
 
+const output = (function () {
+    const output = getById('output'),
+        hasSVG = () => output.childElementCount > 0,
+        getSVG = () => hasSVG() ? output.children[0] : null;
+
+    return {
+        setSVG: svg => { output.innerHTML = svg; },
+        getSVG
+    };
+})();
+
 const mermaidExtensions = (() => {
 
     const logLevel = (() => {
@@ -146,8 +157,8 @@ const mermaidExtensions = (() => {
 
     let renderedEdges = []; // contains info about the arrows between types on the diagram once rendered
 
-    function getRelationLabels(svgParent, type) {
-        const edgeLabels = [...svgParent.querySelectorAll('.edgeLabels span.edgeLabel span')],
+    function getRelationLabels(svg, type) {
+        const edgeLabels = [...svg.querySelectorAll('.edgeLabels span.edgeLabel span')],
             extension = 'extension';
 
         return renderedEdges.filter(e => e.v === type // type name needs to match
@@ -162,7 +173,7 @@ const mermaidExtensions = (() => {
                     "Tried to find a relation label for the following edge (by its value.label) but couldn't.", edge);
                 else { // there are multiple edge labels with the same HTML (i.e. matching relation name)
                     // find the path that is rendered for the edge
-                    const path = svgParent.querySelector('.edgePaths>path.relation#' + edge.value.id),
+                    const path = svg.querySelector('.edgePaths>path.relation#' + edge.value.id),
                         labelsByDistance = labels.sort((a, b) => getDistance(path, a) - getDistance(path, b));
 
                     console.warn('Found multiple relation labels matching the following edge (by its value.label). Returning the closest/first.',
@@ -255,8 +266,8 @@ const mermaidExtensions = (() => {
             return { diagram, detailedTypes, xmlDocs };
         },
 
-        postProcess: (svgParent, options) => {
-            for (let entity of svgParent.querySelectorAll('g.nodes>g').values()) {
+        postProcess: (svg, options) => {
+            for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
                 const title = entity.querySelector('.classTitle'),
                     name = title.textContent,
                     docs = structuredClone((options.xmlDocs || [])[name]); // clone to have a modifyable collection without affecting the original
@@ -264,7 +275,7 @@ const mermaidExtensions = (() => {
                 // splice in XML documentation as label titles if available
                 if (docs) {
                     const typeKey = '', nodeLabel = 'span.nodeLabel',
-                        relationLabels = getRelationLabels(svgParent, name),
+                        relationLabels = getRelationLabels(svg, name),
 
                         setDocs = (label, member) => {
                             label.title = docs[member];
@@ -466,12 +477,10 @@ const render = async isRestoringState => {
     /* Renders response and deconstructs returned object because we're only interested in the svg.
         Note that the ID supplied as the first argument must not match any existing element ID
         unless you want its contents to be replaced. See https://mermaid.js.org/config/usage.html#api-usage */
-    const { svg } = await mermaid.render('foo', diagram),
-        output = getById('output');
+    const { svg } = await mermaid.render('foo', diagram);
+    output.setSVG(svg);
 
-    output.innerHTML = svg;
-
-    mermaidExtensions.postProcess(output, {
+    mermaidExtensions.postProcess(output.getSVG(), {
         xmlDocs,
 
         onTypeClick: async (event, name) => {
