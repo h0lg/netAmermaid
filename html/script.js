@@ -65,44 +65,55 @@ const notify = (() => {
 const output = (function () {
     const output = getById('output'),
         hasSVG = () => output.childElementCount > 0,
-        getSVG = () => hasSVG() ? output.children[0] : null;
+        getSVG = () => hasSVG() ? output.children[0] : null,
+        updateSvgViewBox = (svg, viewBox) => { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`); };
 
-    const zoomFactor = 0.1;
-    const panFactor = 10;
+    // enable zooming SVG using Ctrl + mouse wheel
+    const zoomFactor = 0.1, panFactor = 2023; // to go with the Zeitgeist
 
     output.addEventListener('wheel', event => {
+        if (!event.ctrlKey || !hasSVG()) return;
         event.preventDefault();
-        if (output.childElementCount === 0) return;
-        const svg = output.children[0];
-        const delta = event.deltaY < 0 ? 1 : -1;
-        const zoomDelta = 1 + zoomFactor * delta;
-        let viewBox = svg.viewBox.baseVal;
 
-        let isZooming = false;
-        let isPanningX = false;
-        let isPanningY = false;
+        const svg = getSVG(),
+            delta = event.deltaY < 0 ? 1 : -1,
+            zoomDelta = 1 + zoomFactor * delta,
+            viewBox = svg.viewBox.baseVal;
 
-        if (event.ctrlKey) {
-            isZooming = true;
-        } else if (event.altKey) {
-            isPanningX = true;
-        } else if (event.shiftKey) {
-            isPanningY = true;
-        }
+        viewBox.width *= zoomDelta;
+        viewBox.height *= zoomDelta;
+        updateSvgViewBox(svg, viewBox);
+    });
 
-        if (isZooming) {
-            viewBox.width *= zoomDelta;
-            viewBox.height *= zoomDelta;
-        } else if (isPanningX) {
-            viewBox.x += delta * panFactor;
-        } else if (isPanningY) {
-            viewBox.y += delta * panFactor;
-        }
+    // enable panning SVG by grabbing and dragging
+    let isPanning = false, panStartX = 0, panStartY = 0;
 
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+    output.addEventListener('mousedown', event => {
+        isPanning = true;
+        panStartX = event.clientX;
+        panStartY = event.clientY;
+    });
+
+    output.addEventListener('mouseup', () => { isPanning = false; });
+
+    output.addEventListener('mousemove', event => {
+        if (!isPanning || !hasSVG()) return;
+        event.preventDefault();
+
+        const svg = getSVG(),
+            viewBox = svg.viewBox.baseVal,
+            dx = event.clientX - panStartX,
+            dy = event.clientY - panStartY;
+
+        viewBox.x -= dx * panFactor / viewBox.width;
+        viewBox.y -= dy * panFactor / viewBox.height;
+        panStartX = event.clientX;
+        panStartY = event.clientY;
+        updateSvgViewBox(svg, viewBox);
     });
 
     return {
+        getDiagramTitle: () => output.dataset.title,
         setSVG: svg => { output.innerHTML = svg; },
         getSVG
     };
@@ -270,6 +281,7 @@ const mermaidExtensions = (() => {
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
+                + 'accTitle: ' + output.getDiagramTitle() + '\n'
                 + 'direction ' + direction + '\n\n';
 
             // process selected types

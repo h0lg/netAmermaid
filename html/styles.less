@@ -249,6 +249,14 @@ select {
 #output {
     overflow: auto;
 
+    > svg {
+        cursor: grab;
+
+        &:active {
+            cursor: grabbing;
+        }
+    }
+
     .edgeLabels {
         .edgeTerminals .edgeLabel {
             .useBrightText;
