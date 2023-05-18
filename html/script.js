@@ -968,7 +968,8 @@ const controlDisplay = (function () {
 document.onkeydown = async (event) => {
     const arrowUp = 'ArrowUp', arrowDown = 'ArrowDown';
 
-    if (event.ctrlKey) {
+    // support Cmd key as alternative on Mac, see https://stackoverflow.com/a/5500536
+    if (event.ctrlKey || event.metaKey) {
         switch (event.key) {
             case 'b': filterSidebar.toggle(); return;
             case 'k':
@@ -990,7 +991,7 @@ document.onkeydown = async (event) => {
         }
     }
 
-    if (event.altKey) {
+    if (event.altKey) { // naturally triggered by Mac's option key as well
         // enable moving selected types up and down using arrow keys while holding [Alt]
         const upOrDown = event.key === arrowUp ? true : event.key === arrowDown ? false : null;
 
@@ -1002,6 +1003,23 @@ document.onkeydown = async (event) => {
         }
     }
 };
+
+// rewrite help replacing references to 'Ctrl' with 'Cmd' for Mac users
+if (/(Mac)/i.test(navigator.userAgent)) {
+    const ctrl = /Ctrl/mg,
+        replace = source => source.replaceAll(ctrl, '⌘');
+
+    for (let titled of document.querySelectorAll('[title]'))
+        if (ctrl.test(titled.title)) titled.title = replace(titled.title);
+
+    for (let titled of document.querySelectorAll('[data-title]'))
+        if (ctrl.test(titled.dataset.title)) titled.dataset.title = replace(titled.dataset.title);
+
+    for (let element of getById('info').querySelectorAll('*')) {
+        const text = element.innerText || element.textContent; // Get the text content of the element
+        if (ctrl.test(text)) element.innerHTML = replace(text);
+    }
+}
 
 mermaidExtensions.init({ startOnLoad: false }); // initializes mermaid as well
 typeSelector.focus(); // focus type filter initially to enable keyboard input
