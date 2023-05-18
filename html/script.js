@@ -571,6 +571,8 @@ const render = async isRestoringState => {
 
 const filterSidebar = (() => {
     const filterForm = getById('filter'),
+        resizing = 'resizing',
+        toggleBtn = getById('filter-toggle'),
         toggle = () => collapse.toggle(filterForm);
 
     // enable rendering by hitting Enter on filter form
@@ -579,9 +581,45 @@ const filterSidebar = (() => {
         await render();
     };
 
-    // enable toggling filter info
-    getById('info-toggle').onclick = () => { collapse.toggle(getById('info')); };
-    getById('filter-toggle').onclick = toggle; // toggle sidebar on click
+    // enable adjusting max sidebar width
+    (() => {
+        const filterWidthOverride = getById('filter-width'), // a style tag dedicated to overriding the default filter max-width
+            minWidth = 210, maxWidth = window.innerWidth / 2; // limit the width of the sidebar
+
+        let isDragging = false; // tracks whether the sidbar is being dragged
+        let pickedUp = 0; // remembers where the dragging started from
+        let widthBefore = 0; // remembers the width when dragging starts
+        let change = 0; // remembers the total distance of the drag
+
+        toggleBtn.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            pickedUp = event.clientX;
+            widthBefore = filterForm.offsetWidth;
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!isDragging) return;
+
+            const delta = event.clientX - pickedUp,
+                newWidth = Math.max(minWidth, Math.min(maxWidth, widthBefore + delta));
+
+            change = delta;
+            filterForm.classList.add(resizing);
+            filterWidthOverride.innerHTML = `#filter.open { max-width: ${newWidth}px; }`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            filterForm.classList.remove(resizing);
+        });
+
+        // enable toggling filter info on click
+        toggleBtn.addEventListener('click', () => {
+            if (Math.abs(change) < 5) toggle(); // prevent toggling for small, accidental drags
+            change = 0; // reset the remembered distance to enable subsequent clicks
+        });
+    })();
 
     return {
         toggle,
