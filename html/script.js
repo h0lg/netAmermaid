@@ -306,6 +306,15 @@ const mermaidExtensions = (() => {
 })();
 
 const state = (() => {
+    const restore = async data => {
+        if (data.d) layoutDirection.set(data.d);
+
+        if (data.t) {
+            typeFilter.setSelected(data.t);
+            await render(true);
+        }
+    };
+
     function updateQueryString(href, params) {
         // see https://developer.mozilla.org/en-US/docs/Web/API/URL
         const url = new URL(href), search = url.searchParams;
@@ -324,11 +333,7 @@ const state = (() => {
         return url.href;
     }
 
-    window.onpopstate = async event => {
-        const data = event.state;
-        typeFilter.setSelected(data.t);
-        await render(true);
-    };
+    window.onpopstate = async event => { await restore(event.state); };
 
     return {
         update: () => {
@@ -339,16 +344,8 @@ const state = (() => {
             history.pushState(data, '', updateQueryString(location.href, data));
         },
         restore: async () => {
-            const search = new URLSearchParams(location.search),
-                types = search.getAll('t');
-
-            if (types.length > 0) {
-                typeFilter.setSelected(types);
-                const direction = search.get('d');
-
-                if (direction) layoutDirection.set(direction); // renders
-                else await render(true);
-            }
+            const search = new URLSearchParams(location.search);
+            await restore({ d: search.get('d'), t: search.getAll('t') });
         }
     };
 })();
