@@ -66,7 +66,15 @@ const output = (function () {
     const output = getById('output'),
         hasSVG = () => output.childElementCount > 0,
         getSVG = () => hasSVG() ? output.children[0] : null,
-        updateSvgViewBox = (svg, viewBox) => { svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`); };
+
+        updateSvgViewBox = (svg, viewBox) => {
+            if (svg.originalViewBox === undefined) {
+                const vb = svg.viewBox.baseVal;
+                svg.originalViewBox = { x: vb.x, y: vb.y, width: vb.width, height: vb.height, };
+            }
+
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        };
 
     // enable zooming SVG using Ctrl + mouse wheel
     const zoomFactor = 0.1, panFactor = 2023; // to go with the Zeitgeist
@@ -115,7 +123,12 @@ const output = (function () {
     return {
         getDiagramTitle: () => output.dataset.title,
         setSVG: svg => { output.innerHTML = svg; },
-        getSVG
+        getSVG,
+
+        resetZoomAndPan: () => {
+            const svg = getSVG();
+            if (svg !== null) updateSvgViewBox(svg, svg.originalViewBox);
+        }
     };
 })();
 
@@ -795,6 +808,7 @@ document.onkeydown = async (event) => {
             case 'ArrowRight': layoutDirection.set('LR', event); return;
             case arrowUp: layoutDirection.set('BT', event); return;
             case arrowDown: layoutDirection.set('TB', event); return;
+            case '0': output.resetZoomAndPan(); return;
         }
     }
 
