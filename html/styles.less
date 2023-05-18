@@ -336,6 +336,21 @@ select {
     }
 }
 
+#mouse {
+    position: fixed;
+    transform: translateX(-50%) translateY(-50%);
+    height: 2em;
+    width: 2em;
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 1em;
+    border: solid .1em yellow;
+
+    &.down {
+        background-color: #ff08;
+    }
+}
+
 /* hide stuff in print view */
 @media print {
     #filter, #filter-toggle, .bubbles {

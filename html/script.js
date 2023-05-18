@@ -810,12 +810,13 @@ const exportOptions = (() => {
     };
 })();
 
-// displays pressed keys for teaching usage and other presentations
+// displays pressed keys and highlights mouse cursor for teaching usage and other presentations
 const controlDisplay = (function () {
     let used = new Set(), enabled = false, wheelTimeout;
 
     const alt = 'Alt',
         display = getById('pressed-keys'), // a label displaying the keys being pressed and mousewheel being scrolled
+        mouse = getById('mouse'), // a circle tracking the mouse to make following it easier
 
         translateKey = key => key.length === 1 ? key.toUpperCase() : key,
 
@@ -856,7 +857,15 @@ const controlDisplay = (function () {
                     updateDisplay();
                     wheelTimeout = undefined;
                 }, 500);
-            }
+            },
+
+            mousemove: event => {
+                mouse.style.top = event.clientY + 'px';
+                mouse.style.left = event.clientX + 'px';
+            },
+
+            mousedown: () => { mouse.classList.add('down'); },
+            mouseup: () => { setTimeout(() => { mouse.classList.remove('down'); }, 300); }
         };
 
     return {
@@ -864,9 +873,13 @@ const controlDisplay = (function () {
             enabled = !enabled;
 
             if (enabled) {
+                mouse.hidden = false;
+
                 for (let [event, handler] of Object.entries(eventHandlers))
                     document.addEventListener(event, handler);
             } else {
+                mouse.hidden = true;
+
                 for (let [event, handler] of Object.entries(eventHandlers))
                     document.removeEventListener(event, handler);
 
