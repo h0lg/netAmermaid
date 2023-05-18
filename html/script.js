@@ -306,6 +306,8 @@ const mermaidExtensions = (() => {
 })();
 
 const state = (() => {
+    const originalTitle = document.head.getElementsByTagName('title')[0].textContent;
+
     const restore = async data => {
         if (data.d) layoutDirection.set(data.d);
 
@@ -337,11 +339,16 @@ const state = (() => {
 
     return {
         update: () => {
-            const t = Object.keys(typeFilter.getSelected()),
+            const types = typeFilter.getSelected(),
+                t = Object.keys(types),
                 d = layoutDirection.get(),
-                data = { t, d };
+                data = { t, d },
+                typeNames = Object.values(types).map(t => t.Name);
 
             history.pushState(data, '', updateQueryString(location.href, data));
+
+            // record selected types in title so users see which selection they return to when using a history link
+            document.title = (typeNames.length ? typeNames.join(', ') + ' - ' : '') + originalTitle;
         },
         restore: async () => {
             const search = new URLSearchParams(location.search);
