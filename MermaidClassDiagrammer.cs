@@ -345,5 +345,8 @@ namespace NetAmermaid
                 /* but exclude methods declared by object and their overrides, if inherited */
                 || !m.DeclaringType.IsObject()
                     && (!m.IsOverride || !InheritanceHelper.GetBaseMember(m).DeclaringType.IsObject())));
+
+        internal string GetLoadedAssemblyVersion()
+            => decompiler.TypeSystem.MainModule.PEFile.Metadata.GetAssemblyDefinition().Version.ToString();
     }
 }

@@ -87,6 +87,8 @@ namespace NetAmermaid
 
             var html = htmlTemplate
                 .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
+                .Replace("{{assemblyVersion}}", factory.GetLoadedAssemblyVersion())
+                .Replace("{{builderVersion}}", AssemblyInfo.Version)
                 .Replace("{{repoUrl}}", RepoUrl)
                 .Replace("{{typeDefinitionsByNamespace}}", typeDefsJson)
                 .Replace("{{script}}", script);

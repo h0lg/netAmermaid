@@ -129,12 +129,13 @@ select {
     &.horizontal {
         max-width: 0;
         padding: 0;
-        transition: max-width padding ease-in-out .5s;
+        margin: 0;
+        transition: all ease-in-out .5s;
         overflow: hidden;
 
         &.open {
             padding: revert;
-            max-width: 1000px;
+            max-width: 100vw;
         }
     }
 }
@@ -155,6 +156,11 @@ select {
 
 .scndry {
     font-size: smaller;
+}
+
+.mano-a-borsa {
+    transform: rotate(95deg);
+    .clickable;
 }
 
 #content {
@@ -317,21 +323,58 @@ select {
     }
 }
 
-#toaster {
+#netAmermaid {
     position: absolute;
     bottom: 2em;
     right: 2em;
-    gap: .5em;
+    align-items: end;
+    @logoWidth: 2.3em;
 
-    span {
-        animation: .5s ease-in fadeIn;
-        border-radius: .5em;
-        padding: .5em;
-        .brightenBg;
+    #toaster {
+        margin-right: @logoWidth + .5em;
+
+        span {
+            animation: .5s ease-in fadeIn;
+            border-radius: .5em;
+            padding: .5em;
+            .darkenBg(2);
+            .useBrightText;
+
+            &.leaving {
+                animation: 1s ease-in-out fadeOut;
+            }
+        }
+    }
+
+    .build-info {
+        align-items: end;
+        height: @logoWidth;
+        border-radius: 7px;
+        .darkenBg(3);
         .useBrightText;
 
-        &.leaving {
-            animation: 1s ease-in-out fadeOut;
+        > * {
+            height: 100%;
+        }
+
+        #build-info {
+            text-align: right;
+
+            > * {
+                padding: 0 .5em;
+            }
+
+            a {
+                .useBrightText;
+
+                &:not(.project) {
+                    text-decoration: none;
+                }
+
+                span {
+                    display: inline-block;
+                }
+            }
         }
     }
 }
@@ -371,7 +414,7 @@ select {
 
 /* hide stuff in print view */
 @media print {
-    #filter, #filter-toggle, .bubbles {
+    #filter, #filter-toggle, #netAmermaid, img, .bubbles {
         display: none;
     }
 }
