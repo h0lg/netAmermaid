@@ -41,6 +41,16 @@ const collapse = (() => {
         open: element => {
             if (isOpen(element)) return false; // return whether collapse was opened by this process
             return toggle(element, true);
+        },
+
+        initToggles: () => {
+            for (let trigger of [...document.querySelectorAll('.toggle[href],[data-toggles]')]) {
+                trigger.addEventListener('click', event => {
+                    event.preventDefault(); // to avoid pop-state event
+                    const trigger = event.currentTarget;
+                    toggle(document.querySelector(trigger.attributes.href?.value || trigger.dataset.toggles));
+                });
+            }
         }
     };
 })();
@@ -793,6 +803,7 @@ const exportOptions = (() => {
         saveAs = 'saveAs',
         png = 'png',
         svg = 'svg',
+        isDisabled = () => toggle.hidden, // using toggle visibility as indicator
 
         open = () => {
             wereOpened = true;
@@ -800,8 +811,7 @@ const exportOptions = (() => {
         },
 
         copy = event => {
-            // allow the default for copying text if no types are rendered, using toggle visibility as indicator
-            if (toggle.hidden) return;
+            if (isDisabled()) return; // allow the default for copying text if no types are rendered
 
             if (!exporter.isClipboardAvailable()) notify('The clipboard seems unavailable in this browser :(');
             else {
@@ -859,7 +869,6 @@ const exportOptions = (() => {
         };
     })();
 
-    toggle.onclick = () => collapse.toggle(container);
 
     if (exporter.isClipboardAvailable()) copyBtn.onclick = copy;
     else copyBtn.hidden = true;
@@ -875,8 +884,8 @@ const exportOptions = (() => {
             toggle.hidden = !enable;
         },
 
-        quickSave: (event) => {
-            if (toggle.hidden) return; // saving is not enabled
+        quickSave: event => {
+            if (isDisabled()) return; // allow the default for saving HTML doc if no types are rendered
 
             if (wereOpened) {
                 save(event); // allow quick save
@@ -1031,6 +1040,7 @@ if (/(Mac)/i.test(navigator.userAgent)) {
     }
 }
 
+collapse.initToggles();
 mermaidExtensions.init({ startOnLoad: false }); // initializes mermaid as well
 typeSelector.focus(); // focus type filter initially to enable keyboard input
 await state.restore();

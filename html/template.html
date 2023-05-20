@@ -28,7 +28,7 @@
             <div class="flx gap">
                 <input id="pre-filter-types" placeholder="pre-filter" class="grow" title="I may look like vanilla-flavored plain text, but listen to ECMAScript-flavoured RegEx 🤓 Focus me with [Ctrl + K]." />
                 <label for="type-select" class="grow">types</label>
-                <button type="button" class="icon" id="info-toggle" title="toggle help">ℹ</button>
+                <button type="button" class="icon" data-toggles="#info" title="toggle help">ℹ</button>
             </div>
 
             <div id="info" class="scndry vertical collapse">
@@ -83,7 +83,7 @@
 
             <div id="actions" class="flx spaced">
                 <button type="submit" id="render" disabled title="Hitting [Enter] while focusing the side bar will do it, as will changing the layout direction or clicking on types on the diagram.">🖌 Render the diagram</button>
-                <button type="button" class="icon" id="exportOptions-toggle" hidden title="toggle export options">🝀</button>
+                <button type="button" class="icon" data-toggles="#exportOptions" id="exportOptions-toggle" hidden title="toggle export options">🝀</button>
             </div>
 
             <div id="exportOptions" class="scndry vertical collapse aligned spaced flx col">

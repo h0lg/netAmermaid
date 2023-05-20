@@ -139,6 +139,11 @@ select {
     }
 }
 
+.toggle, [data-toggles] {
+    .clickable;
+    text-decoration-line: none;
+}
+
 .container {
     position: absolute;
     top: 0;
@@ -227,7 +232,7 @@ select {
         margin-top: 1em;
         justify-content: space-between;
 
-        #render, #exportOptions-toggle {
+        #render {
             font-weight: bold;
         }
     }
