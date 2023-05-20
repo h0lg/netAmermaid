@@ -48,6 +48,7 @@ const collapse = (() => {
                 trigger.addEventListener('click', event => {
                     event.preventDefault(); // to avoid pop-state event
                     const trigger = event.currentTarget;
+                    trigger.ariaExpanded = !(trigger.ariaExpanded === 'true');
                     toggle(document.querySelector(trigger.attributes.href?.value || trigger.dataset.toggles));
                 });
             }
@@ -935,7 +936,6 @@ const exportOptions = (() => {
             return [dimension, getById('scale-size').value];
         };
     })();
-
 
     if (exporter.isClipboardAvailable()) copyBtn.onclick = copy;
     else copyBtn.hidden = true;

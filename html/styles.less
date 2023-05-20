@@ -36,8 +36,8 @@
     background-color: rgba(0,0,0, calc(3/16 * @times));
 }
 
-.brightenBg() {
-    background-color: #fff3;
+.brightenBg(@times: 1) {
+    background-color: rgba(255,255,255, calc(1/16 * @times));
 }
 
 body {
@@ -142,15 +142,11 @@ select {
 
 .toggle, [data-toggles] {
     .clickable;
-    text-decoration-line: none;
 }
 
 .container {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    inset: 0;
     margin: 0;
 }
 
@@ -161,6 +157,27 @@ select {
 .mano-a-borsa {
     transform: rotate(95deg);
     .clickable;
+
+    &:after {
+        content: '🤏';
+    }
+}
+
+.trawl-net {
+    transform: rotate(180deg) translateY(-2px);
+    display: inline-block;
+
+    &:after {
+        content: '🥅';
+    }
+}
+
+.torch {
+    display: inline-block;
+
+    &:after {
+        content: '🔦';
+    }
 }
 
 .pulsing {
@@ -218,9 +235,30 @@ select {
         min-width: 3em;
     }
 
+    [data-toggles="#info"] {
+        .torch {
+            transform: rotate(-90deg);
+            transition: transform .5s;
+        }
+
+        &[aria-expanded=true] {
+            .torch {
+                transform: rotate(-255deg);
+            }
+        }
+    }
+
     #info {
         overflow: auto;
-        .brightenBg;
+        .brightenBg(2);
+
+        a.toggle {
+            .useBrightText;
+
+            img {
+                height: 1em;
+            }
+        }
     }
 
     #type-select {
@@ -236,7 +274,7 @@ select {
             display: none;
 
             &:checked + label {
-                .brightenBg;
+                .brightenBg(4);
             }
         }
 
@@ -271,8 +309,7 @@ select {
 
     #exportOptions {
         overflow: auto;
-        gap: .5em;
-        .brightenBg;
+        .brightenBg(2);
 
         #save {
             margin-right: .5em;
