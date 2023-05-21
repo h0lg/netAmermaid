@@ -66,10 +66,16 @@ namespace NetAmermaid
                 foreach (var field in fields) AddXmlDocEntry(docs, xmlDocs.ForField(field), field);
             }
 
+            var typeId = GetId(type);
+
+            var body = fields.Select(f => f.Name).Prepend("<<Enumeration>>")
+                .Join(Environment.NewLine + "    ", pad: true).TrimEnd(' ');
+
             return new Namespace.Type
             {
+                Id = typeId,
                 Name = name,
-                DiagramDefinition = $"class {name} {{{fieldDefinitions}<<Enumeration>>}}",
+                DiagramDefinition = $"class {typeId} [\"{name}\"] {{{body}}}",
                 XmlDocs = docs?.Keys.Any() == true ? docs : default
             };
         }
@@ -80,6 +86,7 @@ namespace NetAmermaid
             var methods = GetMethods(type);
             var properties = type.GetProperties(memberBindingFlags);
             var hasOneRelations = properties.Where(p => types.Contains(p.PropertyType)).ToArray();
+            var typeId = GetId(type);
 
             var hasManyRelations = properties.Select(property =>
             {
@@ -115,12 +122,18 @@ namespace NetAmermaid
             var annotation = type.IsInterface ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
 
             var body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + Environment.NewLine;
-            var baseType = type.BaseType != null && type.BaseType != typeof(object) ? $"{GetName(type.BaseType)}<|--{typeName}" : null;
 
-            var relationships = type.GetInterfaces().Where(i => types.Contains(i)).Select(i => $"{GetName(i)}<|..{typeName}")
+            var baseType = type.BaseType == null || type.BaseType == typeof(object) ? null
+                : $"{GetId(type.BaseType)}<|--{typeId}" + LabelRelated(type.BaseType, GetId(type.BaseType));
+
+            var relationships = type.GetInterfaces().Where(i => types.Contains(i)).Select(iface =>
+            {
+                string ifaceId = GetId(iface);
+                return $"{ifaceId}<|..{typeId}" + LabelRelated(iface, ifaceId);
+            })
                 .Prepend(baseType)
-                .Concat(FormatHasOneRelations(typeName, hasOneRelationsByType.GetValue(type)))
-                .Concat(FormatHasManyRelations(typeName, hasManyRelationsByType.GetValue(type)))
+                .Concat(FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(type)))
+                .Concat(FormatHasManyRelations(typeId, hasManyRelationsByType.GetValue(type)))
                 .Where(line => !string.IsNullOrEmpty(line))
                 .Join(Environment.NewLine);
             #endregion
@@ -139,38 +152,46 @@ namespace NetAmermaid
             #endregion
 
             #region build diagram definitions for inherited members by declaring type
-            var explicitTypePrefix = typeName + " : ";
+            var explicitTypePrefix = typeId + " : ";
 
             // get ancestor types this one is inheriting members from
             var inheritedMembersByType = flatPropertiesByType.Keys.Union(methodsByType.Keys).Union(fieldsByType.Keys)
                 .Union(hasOneRelationsByType.Keys).Union(hasManyRelationsByType.Keys).Where(t => t != type)
                 // and group inherited members by declaring type
-                .ToDictionary(GetName, t => flatPropertiesByType.GetValue(t).FormatAll(p => explicitTypePrefix + FormatFlatProperty(p))
+                .ToDictionary(GetId, t => flatPropertiesByType.GetValue(t).FormatAll(p => explicitTypePrefix + FormatFlatProperty(p))
                     .Concat(methodsByType.GetValue(t).FormatAll(m => explicitTypePrefix + FormatMethod(m)))
                     .Concat(fieldsByType.GetValue(t).FormatAll(f => explicitTypePrefix + FormatField(f)))
-                    .Concat(FormatHasOneRelations(typeName, hasOneRelationsByType.GetValue(t)))
-                    .Concat(FormatHasManyRelations(typeName, hasManyRelationsByType.GetValue(t)))
+                    .Concat(FormatHasOneRelations(typeId, hasOneRelationsByType.GetValue(t)))
+                    .Concat(FormatHasManyRelations(typeId, hasManyRelationsByType.GetValue(t)))
                     .Join(Environment.NewLine));
             #endregion
 
             return new Namespace.Type
             {
+                Id = typeId,
                 Name = typeName,
-                DiagramDefinition = $"class {typeName} {{{body}}}" + twoLineBreaks + relationships,
+                DiagramDefinition = $"class {typeId} [\"{typeName}\"] {{{body}}}" + twoLineBreaks + relationships,
                 InheritedMembersByDeclaringType = inheritedMembersByType,
                 XmlDocs = docs?.Keys.Any() == true ? docs : default
             };
         }
 
-        private IEnumerable<string> FormatHasManyRelations(string typeName, IEnumerable<(PropertyInfo property, Type itemType)>? relations)
+        private IEnumerable<string> FormatHasManyRelations(string typeId, IEnumerable<(PropertyInfo, Type)>? relations)
             => relations.FormatAll(relation =>
             {
-                var (property, itemType) = relation;
-                return $@"{typeName} --> ""*"" {GetName(itemType)} : {property.Name}";
+                var (property, elementType) = relation;
+                string relatedId = GetId(elementType);
+                return $@"{typeId} --> ""*"" {relatedId} : {property.Name}" + LabelRelated(elementType, relatedId);
             });
 
-        private IEnumerable<string> FormatHasOneRelations(string typeName, IEnumerable<PropertyInfo>? relations)
-            => relations.FormatAll(p => $"{typeName} --> {GetName(p.PropertyType)} : {p.Name}");
+        private IEnumerable<string> FormatHasOneRelations(string typeId, IEnumerable<PropertyInfo>? relations)
+            => relations.FormatAll(p =>
+            {
+                var relatedId = GetId(p.PropertyType);
+                return $"{typeId} --> {relatedId} : {p.Name}" + LabelRelated(p.PropertyType, relatedId);
+            });
+
+        private string LabelRelated(Type type, string typeId) => Environment.NewLine + $"class {typeId} [\"{GetName(type)}\"]";
 
         private string FormatMethod(MethodInfo method)
         {
@@ -197,6 +218,7 @@ namespace NetAmermaid
         }
 
         private string FormatField(FieldInfo field) => $"{GetAccessibility(field)}{GetName(field.FieldType)} {field.Name}";
+        private string GetId(Type type) => type.FullName?.Replace('.', '_') ?? type.Name;
         private string GetName(Type type) => typeFormatter.GetName(type); // to reduce noise
 
         private static void AddXmlDocEntry(Dictionary<string, string> docs, string? doc, MemberInfo? member = null)
@@ -234,6 +256,7 @@ namespace NetAmermaid
             /// <see cref="System.Type"/> from the targeted assembly.</summary>
             public sealed class Type
             {
+                public string Id { get; set; } = null!;
                 public string Name { get; set; } = null!;
 
                 /// <summary>Contains the definition of the type and its own (uninherited) members

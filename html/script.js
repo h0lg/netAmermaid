@@ -217,11 +217,11 @@ const mermaidExtensions = (() => {
     let renderedEdges = [], // contains info about the arrows between types on the diagram once rendered
         lastRenderedDiagram;
 
-    function getRelationLabels(svg, type) {
+    function getRelationLabels(svg, typeId) {
         const edgeLabels = [...svg.querySelectorAll('.edgeLabels span.edgeLabel span')],
             extension = 'extension';
 
-        return renderedEdges.filter(e => e.v === type // type name needs to match
+        return renderedEdges.filter(e => e.v === typeId // type name needs to match
             && e.value.arrowTypeStart !== extension && e.value.arrowTypeEnd !== extension) // exclude inheritance arrows
             .map(edge => {
                 const labelHtml = edge.value.label,
@@ -282,8 +282,8 @@ const mermaidExtensions = (() => {
 
         /**
          * 
-         * @param {object} typeDetails An object with the names of types to display in detail (i.e. with members) for keys
-         * and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Name) for values.
+         * @param {object} typeDetails An object with the IDs of types to display in detail (i.e. with members) for keys
+         * and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values.
          * @param {string} direction The layout direction of the resulting diagram
          * @param {string|RegExp} filterRegex A regular expression matching things to exclude from the diagram definition.
          * @returns
@@ -299,7 +299,7 @@ const mermaidExtensions = (() => {
                 + 'direction ' + direction + '\n\n';
 
             // process selected types
-            for (let [type, details] of Object.entries(typeDetails)) {
+            for (let [typeId, details] of Object.entries(typeDetails)) {
                 diagram += details.DiagramDefinition + '\n\n';
 
                 if (details.InheritedMembersByDeclaringType) {
@@ -319,7 +319,7 @@ const mermaidExtensions = (() => {
                     }
                 }
 
-                xmlDocs[type] = details.XmlDocs;
+                xmlDocs[typeId] = details.XmlDocs;
             }
 
             if (filterRegex !== null) diagram = diagram.replace(filterRegex, '');
@@ -331,15 +331,20 @@ const mermaidExtensions = (() => {
         getDiagram: () => lastRenderedDiagram,
 
         postProcess: (svg, options) => {
+            // matches 'MyClass2' from generated id attributes in the form of 'classId-MyClass2-0'
+            const typeIdFromDomId = /(?<=classId-)\w+(?=-\d+)/;
+
             for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
-                const title = entity.querySelector('.classTitle'),
-                    name = title.textContent,
-                    docs = structuredClone((options.xmlDocs || [])[name]); // clone to have a modifyable collection without affecting the original
+                const typeId = typeIdFromDomId.exec(entity.id)[0];
+
+                // clone to have a modifyable collection without affecting the original
+                const docs = structuredClone((options.xmlDocs || [])[typeId]);
 
                 // splice in XML documentation as label titles if available
                 if (docs) {
                     const typeKey = '', nodeLabel = 'span.nodeLabel',
-                        relationLabels = getRelationLabels(svg, name),
+                        title = entity.querySelector('.classTitle'),
+                        relationLabels = getRelationLabels(svg, typeId),
 
                         setDocs = (label, member) => {
                             label.title = docs[member];
@@ -366,15 +371,15 @@ const mermaidExtensions = (() => {
                         if (related) matchingLabels.push(related);
 
                         if (matchingLabels.length === 0) console.error(
-                            `Expected to find either a member or relation label for ${name}.${member} to attach the XML documentation to but found none.`);
+                            `Expected to find either a member or relation label for ${title.textContent}.${member} to attach the XML documentation to but found none.`);
                         else if (matchingLabels.length > 1) console.error(
-                            `Expected to find one member or relation label for ${name}.${member} to attach the XML documentation to but found multiple. Applying the first.`, matchingLabels);
+                            `Expected to find one member or relation label for ${title.textContent}.${member} to attach the XML documentation to but found multiple. Applying the first.`, matchingLabels);
                         else documentOwnLabel(matchingLabels[0], member);
                     }
                 }
 
                 if (typeof options.onTypeClick === 'function') entity.addEventListener('click',
-                    function (event) { options.onTypeClick.call(this, event, name); });
+                    function (event) { options.onTypeClick.call(this, event, typeId); });
             }
         }
     };
@@ -438,6 +443,7 @@ const typeSelector = (() => {
         renderBtn = getById('render'),
         typeDefsByNamespace = JSON.parse(getById('typeDefinitionsByNamespace').innerHTML),
         tags = { optgroup: 'OPTGROUP', option: 'option' },
+        getNamespace = option => option.parentElement.nodeName === tags.optgroup ? option.parentElement.label : '',
         getOption = typeId => select.querySelector(tags.option + `[value='${typeId}']`);
 
     // fill select list
@@ -451,9 +457,10 @@ const typeSelector = (() => {
             optionParent = group;
         } else optionParent = select;
 
-        for (let type of Object.keys(types)) {
+        for (let typeId of Object.keys(types)) {
             const option = document.createElement(tags.option);
-            option.innerText = option.value = type;
+            option.value = typeId;
+            option.innerText = types[typeId].Name;
             optionParent.appendChild(option);
         }
     }
@@ -483,8 +490,8 @@ const typeSelector = (() => {
             triggerChangeOn(select);
         },
 
-        toggleOption: name => {
-            const option = getOption(name);
+        toggleOption: typeId => {
+            const option = getOption(typeId);
 
             if (option !== null) {
                 option.selected = !option.selected;
@@ -492,14 +499,13 @@ const typeSelector = (() => {
             }
         },
 
-        /** Returns the types selected by the user in the form of an object with the type names for keys
-         *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Name) for values. */
+        /** Returns the types selected by the user in the form of an object with the type IDs for keys
+         *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values. */
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
-            const namespace = option.parentElement.nodeName === tags.optgroup ? option.parentElement.label : '',
-                type = option.value,
-                details = typeDefsByNamespace[namespace][type];
+            const namespace = getNamespace(option), typeId = option.value,
+                details = typeDefsByNamespace[namespace][typeId];
 
-            return [type, details];
+            return [typeId, details];
         })),
 
         moveSelection: up => {
@@ -562,9 +568,9 @@ const render = async isRestoringState => {
     mermaidExtensions.postProcess(output.getSVG(), {
         xmlDocs,
 
-        onTypeClick: async (event, name) => {
+        onTypeClick: async (event, typeId) => {
             // toggle selection and re-render on clicking entity
-            typeSelector.toggleOption(name);
+            typeSelector.toggleOption(typeId);
             await render();
         }
     });

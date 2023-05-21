@@ -87,7 +87,7 @@ namespace NetAmermaid
 
             // convert collections to dictionaries for easier access in JS
             var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
-                ns => ns.Types.ToDictionary(t => t.Name, t => new { t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
+                ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
 
             var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions { WriteIndented = true });
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
