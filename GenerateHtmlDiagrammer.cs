@@ -1,10 +1,8 @@
 ﻿using System.Net;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CommandLine;
-using Microsoft.Extensions.DependencyModel;
 
 namespace NetAmermaid
 {
@@ -42,119 +40,81 @@ namespace NetAmermaid
             $" To enable XML documentation output for your '{assembly}' see https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/#create-xml-documentation-output .")]
         public string? XmlDocs { get; set; }
 
+        [Option('r', "resolve-folders", HelpText = $"Space-separated list of folders to search if assembly lookup fails." +
+            $" Example might be \"C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App\\6.0.21\".")]
+        public IEnumerable<string>? AssemblyResolveFolders { get; set; }
+
         public void Run()
         {
             var assemblyPath = GetPath(Assembly);
             var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
 
-            // see https://jonathancrozier.com/blog/how-to-dynamically-load-different-versions-of-an-assembly-in-the-same-dot-net-application
-            // see https://learn.microsoft.com/en-us/dotnet/framework/deployment/best-practices-for-assembly-loading
-            AssemblyLoadContext? loadContext = null;
-
-            try
+            if (AssemblyResolveFolders != null)
             {
-                // Create a new context and mark it as 'collectible'.
-                string tempLoadContextName = Guid.NewGuid().ToString();
+                List<string> assemblyResolveFoldersFinal = new(AssemblyResolveFolders);
+                assemblyResolveFoldersFinal.Insert(0, Path.GetDirectoryName(assemblyPath));
 
-                loadContext = new InMemoryContext(assemblyPath);
-
-                loadContext.Resolving += LoadContext_Resolving;
-
-
-                Assembly assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
-
-
-
-
-                var types = FilterTypes(assembly);
-
-                #region XML docs
-                var stripNamespaces = StrippedNamespaces?.ToArray();
-
-                var xmlDocs = XmlDocs == null ? new XmlDocumentationFile(assembly, stripNamespaces)
-                    : new XmlDocumentationFile(GetPath(XmlDocs), stripNamespaces);
-
-                if (!xmlDocs.HasEntries) Console.WriteLine("No XML documentation found. Continuing without.");
-                #endregion
-
-                var diagrammer = new MermaidClassDiagrammer(xmlDocs);
-
-                // convert collections to dictionaries for easier access in JS
-                var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
-                    ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
-
-                var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
+                AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
                 {
-                    WriteIndented = true,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-                });
+                    string assemblyName = args.Name.Substring(0, args.Name.IndexOf(","));
 
-                var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
-                var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
-                var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
+                    foreach (string assemblyResolveFolder in assemblyResolveFoldersFinal)
+                    {
+                        string candidateAssemblyFilePath = Path.Combine(assemblyResolveFolder, $"{assemblyName}.dll");
 
-                var html = htmlTemplate
-                    .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
-                    .Replace("{{repoUrl}}", RepoUrl)
-                    .Replace("{{baseTypeRegex}}", WebUtility.HtmlEncode(BaseTypes))
-                    .Replace("{{typeDefinitionsByNamespace}}", typeDefsJson)
-                    .Replace("{{script}}", script);
+                        if (File.Exists(candidateAssemblyFilePath))
+                        {
+                            return System.Reflection.Assembly.LoadFrom(candidateAssemblyFilePath);
+                        }
+                    }
 
-                if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-                File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
-
-                // copy required resources to output folder
-                foreach (var resource in new[] { "styles.css", "netAmermaid.ico" })
-                    File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, resource), overwrite: true);
-
-                Console.WriteLine("Successfully generated HTML diagrammer.");
+                    return null;
+                };
             }
-            finally
+
+            var assembly = System.Reflection.Assembly.LoadFrom(assemblyPath);
+            var types = FilterTypes(assembly);
+
+            #region XML docs
+            var stripNamespaces = StrippedNamespaces?.ToArray();
+
+            var xmlDocs = XmlDocs == null ? new XmlDocumentationFile(assembly, stripNamespaces)
+                : new XmlDocumentationFile(GetPath(XmlDocs), stripNamespaces);
+
+            if (!xmlDocs.HasEntries) Console.WriteLine("No XML documentation found. Continuing without.");
+            #endregion
+
+            var diagrammer = new MermaidClassDiagrammer(xmlDocs);
+
+            // convert collections to dictionaries for easier access in JS
+            var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
+                ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
+
+            var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
             {
-                // Unload the context.
-                loadContext?.Unload();
-            }
-        }
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            });
 
-        // from https://stackoverflow.com/a/40921746
-        private Assembly? LoadContext_Resolving(AssemblyLoadContext context, AssemblyName name)
-        {
-            // avoid loading *.resources dlls, because of: https://github.com/dotnet/coreclr/issues/8416
-            if (name.Name.EndsWith("resources"))
-            {
-                return null;
-            }
+            var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
+            var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
+            var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
 
-            //loadContext.dep
+            var html = htmlTemplate
+                .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
+                .Replace("{{repoUrl}}", RepoUrl)
+                .Replace("{{baseTypeRegex}}", WebUtility.HtmlEncode(BaseTypes))
+                .Replace("{{typeDefinitionsByNamespace}}", typeDefsJson)
+                .Replace("{{script}}", script);
 
-            var dependencies = DependencyContext.Default.RuntimeLibraries;
+            if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
+            File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
 
-            foreach (var library in dependencies)
-            {
-                if (IsCandidateLibrary(library, name))
-                {
-                    return context.LoadFromAssemblyName(new AssemblyName(library.Name));
-                }
-            }
+            // copy required resources to output folder
+            foreach (var resource in new[] { "styles.css", "netAmermaid.ico" })
+                File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, resource), overwrite: true);
 
-            Assembly assembly1 = context.Assemblies.First();
-
-            string? folder = Path.GetDirectoryName(assembly1.Location);
-            var foundDlls = Directory.GetFileSystemEntries(folder, name.Name + ".dll", SearchOption.AllDirectories);
-            if (foundDlls.Any())
-            {
-                return context.LoadFromAssemblyPath(foundDlls[0]);
-            }
-
-            Assembly dep = context.LoadFromAssemblyName(name);
-            return dep;
-        }
-
-        // from https://stackoverflow.com/a/40921746
-        private static bool IsCandidateLibrary(RuntimeLibrary library, AssemblyName assemblyName)
-        {
-            return (library.Name == (assemblyName.Name))
-                    || (library.Dependencies.Any(d => d.Name.StartsWith(assemblyName.Name)));
+            Console.WriteLine("Successfully generated HTML diagrammer.");
         }
 
         public virtual Type[] FilterTypes(Assembly assembly) => assembly.GetTypes().ExceptCompilerGenerated().ToArray();
@@ -167,40 +127,6 @@ namespace NetAmermaid
 
             // support absolute paths as well as file:// URIs and interpret relative path as relative to the current directory
             return uri.IsAbsoluteUri ? uri.AbsolutePath : pathOrUri;
-        }
-
-        //from https://www.reddit.com/r/dotnet/comments/ojl3ah/any_resources_for_resolving_assembly_dependencies/
-        class InMemoryContext : AssemblyLoadContext
-        {
-            private AssemblyDependencyResolver resolver;
-
-            public InMemoryContext(string readerLocation) : base(readerLocation, true)
-            {
-                this.resolver = new AssemblyDependencyResolver(readerLocation);
-            }
-
-            protected override Assembly Load(AssemblyName assemblyName)
-            {
-                var path = resolver.ResolveAssemblyToPath(assemblyName);
-
-                if (!string.IsNullOrEmpty(path))
-                {
-                    return LoadFromAssemblyPath(path);
-                }
-
-                return null;
-            }
-
-            protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
-            {
-                var path = resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    return LoadUnmanagedDllFromPath(path);
-                }
-
-                return IntPtr.Zero;
-            }
         }
     }
 }
