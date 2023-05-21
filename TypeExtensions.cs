@@ -1,10 +1,18 @@
-﻿using ICSharpCode.Decompiler.TypeSystem;
+﻿using System.Diagnostics.CodeAnalysis;
+using ICSharpCode.Decompiler.TypeSystem;
 
 namespace NetAmermaid
 {
     internal static class TypeExtensions
     {
         internal static bool IsObject(this IType t) => t.IsKnownType(KnownTypeCode.Object);
+
+        internal static bool TryGetNullableType(this IType type, [MaybeNullWhen(false)] out IType typeArg)
+        {
+            bool isNullable = type.IsKnownType(KnownTypeCode.NullableOfT);
+            typeArg = isNullable ? type.TypeArguments.Single() : null;
+            return isNullable;
+        }
     }
 
     internal static class MemberInfoExtensions

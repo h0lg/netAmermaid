@@ -107,7 +107,7 @@ namespace NetAmermaid
             string typeId = GetId(type);
             IMethod[] methods = GetMethods(type).ToArray();
             IProperty[] properties = type.GetProperties().ToArray();
-            IProperty[] hasOneRelations = properties.Where(property => selectedTypes!.Contains(property.ReturnType)).ToArray();
+            IProperty[] hasOneRelations = GetHasOneRelations(properties);
             (IProperty property, IType elementType)[] hasManyRelations = GetManyRelations(properties);
 
             var propertyNames = properties.Select(p => p.Name).ToArray();
@@ -178,6 +178,13 @@ namespace NetAmermaid
             };
         }
 
+        private IProperty[] GetHasOneRelations(IProperty[] properties) => properties.Where(property =>
+        {
+            IType type = property.ReturnType;
+            if (type.TryGetNullableType(out var typeArg)) type = typeArg;
+            return selectedTypes!.Contains(type);
+        }).ToArray();
+
         private (IProperty property, IType elementType)[] GetManyRelations(IProperty[] properties)
             => properties.Select(property =>
             {
@@ -231,8 +238,17 @@ namespace NetAmermaid
         private IEnumerable<string> FormatHasOneRelations(string typeId, IEnumerable<IProperty>? relations)
             => relations.FormatAll(p =>
             {
-                string relatedId = GetId(p.ReturnType);
-                return $"{typeId} --> {relatedId} : {p.Name}" + LabelRelated(p.ReturnType, relatedId);
+                IType type = p.ReturnType;
+                string label = p.Name;
+
+                if (type.TryGetNullableType(out var typeArg))
+                {
+                    type = typeArg;
+                    label += " ?";
+                }
+
+                string id = GetId(type);
+                return $"{typeId} --> {id} : {label}" + LabelRelated(type, id);
             });
 
         private string LabelRelated(IType type, string typeId) => Environment.NewLine + $"class {typeId} [\"{GetName(type)}\"]";
@@ -302,7 +318,7 @@ namespace NetAmermaid
                 return KnownTypeReference.GetCSharpNameByTypeCode(typeDefinition.KnownTypeCode) ?? type.Name;
             }
 
-            if (type.IsKnownType(KnownTypeCode.NullableOfT)) return GetName(type.TypeArguments.Single()) + "?";
+            if (type.TryGetNullableType(out var nullableType)) return GetName(nullableType) + "?";
 
             string typeArguments = type.TypeArguments.Select(GetName).Join(", ");
             return type.Name + $"❰{typeArguments}❱";

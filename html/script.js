@@ -388,7 +388,7 @@ const mermaidExtensions = (() => {
                         // matches only whole words in front of method signatures starting with (
                         const memberName = new RegExp(`(?<!.*\\(.*)\\b${member}\\b`),
                             matchingLabels = ownLabels.filter(l => memberName.test(l.textContent)),
-                            related = relationLabels.find(l => l.textContent === member);
+                            related = relationLabels.find(l => memberName.test(l.textContent));
 
                         if (related) matchingLabels.push(related);
 
