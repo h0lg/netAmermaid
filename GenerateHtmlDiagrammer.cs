@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using CommandLine;
 
 namespace NetAmermaid
@@ -89,7 +90,12 @@ namespace NetAmermaid
             var typeDefsByNamespace = diagrammer.GetDefinitions(types).ToDictionary(ns => ns.Name ?? string.Empty,
                 ns => ns.Types.ToDictionary(t => t.Id, t => new { t.Name, t.DiagramDefinition, t.InheritedMembersByDeclaringType, t.XmlDocs }));
 
-            var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions { WriteIndented = true });
+            var typeDefsJson = JsonSerializer.Serialize(typeDefsByNamespace, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            });
+
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
             var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
             var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
