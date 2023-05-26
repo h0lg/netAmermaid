@@ -9,8 +9,14 @@ namespace NetAmermaid
         public void Run()
         {
             var assemblyPath = GetPath(Assembly);
-            var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
+            XmlDocumentationFormatter? xmlDocs = CreateXmlDocsFormatter(assemblyPath);
+            ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
+            ClassDiagrammer model = factory.BuildModel(Include, Exclude);
+            GenerateOutput(assemblyPath, model, factory.GetSourceAssemblyVersion());
+        }
 
+        private XmlDocumentationFormatter? CreateXmlDocsFormatter(string assemblyPath)
+        {
             var xmlDocsPath = XmlDocs == null ? Path.ChangeExtension(assemblyPath, ".xml") : GetPath(XmlDocs);
             XmlDocumentationFormatter? xmlDocs = null;
 
@@ -18,9 +24,11 @@ namespace NetAmermaid
                 new XmlDocumentationProvider(xmlDocsPath), StrippedNamespaces?.ToArray());
             else Console.WriteLine("No XML documentation file found. Continuing without.");
 
-            ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
-            var diagrammer = factory.BuildModel(Include, Exclude);
+            return xmlDocs;
+        }
 
+        private static string SerializeModel(ClassDiagrammer diagrammer)
+        {
             var jsonModel = new
             {
                 diagrammer.OutsideReferences,
@@ -45,24 +53,30 @@ namespace NetAmermaid
                     }))
             };
 
-            var modelJson = JsonSerializer.Serialize(jsonModel, new JsonSerializerOptions
+            return JsonSerializer.Serialize(jsonModel, new JsonSerializerOptions
             {
                 WriteIndented = true,
                 // avoid outputting null properties unnecessarily
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             });
+        }
 
+        private void GenerateOutput(string assemblyPath, ClassDiagrammer model, string sourceAssemblyVersion)
+        {
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
+            string modelJson = SerializeModel(model);
             var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
             var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
 
             var html = htmlTemplate
                 .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
-                .Replace("{{assemblyVersion}}", factory.GetSourceAssemblyVersion())
+                .Replace("{{assemblyVersion}}", sourceAssemblyVersion)
                 .Replace("{{builderVersion}}", AssemblyInfo.Version)
                 .Replace("{{repoUrl}}", RepoUrl)
                 .Replace("{{model}}", modelJson)
                 .Replace("{{script}}", script);
+
+            var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
 
             if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
             File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
@@ -75,7 +89,7 @@ namespace NetAmermaid
 
             if (ReportExludedTypes)
             {
-                string excludedTypes = diagrammer.Excluded.Join(Environment.NewLine);
+                string excludedTypes = model.Excluded.Join(Environment.NewLine);
                 File.WriteAllText(Path.Combine(outputFolder, "excluded types.txt"), excludedTypes);
             }
         }
