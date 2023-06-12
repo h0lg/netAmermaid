@@ -23,6 +23,7 @@ namespace NetAmermaid
 
         private ITypeDefinition[]? selectedTypes;
         private Dictionary<IType, string>? uniqueIds;
+        private Dictionary<IType, string>? labels;
 
         public ClassDiagrammerFactory(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
         {
@@ -46,6 +47,7 @@ namespace NetAmermaid
 
             // generate dict to read names from later
             uniqueIds = GenerateUniqueIds(selectedTypes);
+            labels = new();
 
             var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new CD.Namespace
             {
@@ -296,6 +298,13 @@ namespace NetAmermaid
 
         private string GetName(IType type)
         {
+            if (labels!.ContainsKey(type)) return labels[type]; // return cached value
+            return labels[type] = GenerateName(type); // generate and cache new value
+        }
+
+        private string GenerateName(IType type)
+        {
+            // non-generic types
             if (type.TypeParameterCount < 1)
             {
                 if (type is ArrayType array) return GetName(array.ElementType) + "[]";
@@ -317,8 +326,10 @@ namespace NetAmermaid
                 return KnownTypeReference.GetCSharpNameByTypeCode(typeDefinition.KnownTypeCode) ?? type.Name;
             }
 
+            // nullable types
             if (type.TryGetNullableType(out var nullableType)) return GetName(nullableType) + "?";
 
+            // other generic types
             string typeArguments = type.TypeArguments.Select(GetName).Join(", ");
             return type.Name + $"❰{typeArguments}❱";
         }
