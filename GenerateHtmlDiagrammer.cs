@@ -59,11 +59,11 @@ namespace NetAmermaid
                 new XmlDocumentationProvider(xmlDocsPath), StrippedNamespaces?.ToArray());
             else Console.WriteLine("No XML documentation file found. Continuing without.");
 
-            MermaidClassDiagrammer diagrammer = new(assemblyPath, xmlDocs);
-            var compilation = diagrammer.BuildDiagrammer(Include, Exclude);
+            ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
+            var diagrammer = factory.BuildModel(Include, Exclude);
 
             // convert collections to dictionaries for easier access in JS
-            var typeDefsByNamespace = compilation.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
+            var typeDefsByNamespace = diagrammer.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
                 ns => ns.Types.ToDictionary(t => t.Id, t => new
                 {
                     t.Name,
@@ -102,7 +102,7 @@ namespace NetAmermaid
 
             if (ReportExludedTypes)
             {
-                string excludedTypes = compilation.Excluded.Join(Environment.NewLine);
+                string excludedTypes = diagrammer.Excluded.Join(Environment.NewLine);
                 File.WriteAllText(Path.Combine(outputFolder, "excluded types.txt"), excludedTypes);
             }
         }

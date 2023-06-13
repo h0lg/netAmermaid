@@ -13,7 +13,7 @@ namespace NetAmermaid
      * lexical definition https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/diagrams/class/parser/classDiagram.jison */
 
     /// <summary>Produces mermaid class diagram syntax for a filtered list of types from a specified .Net assembly.</summary>
-    public class MermaidClassDiagrammer
+    public class ClassDiagrammerFactory
     {
         private static readonly string twoLineBreaks = Environment.NewLine + Environment.NewLine;
 
@@ -24,7 +24,7 @@ namespace NetAmermaid
         private ITypeDefinition[]? selectedTypes;
         private Dictionary<IType, string>? uniqueIds;
 
-        public MermaidClassDiagrammer(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
+        public ClassDiagrammerFactory(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
         {
             this.xmlDocs = xmlDocs;
             decompilerSettings = new DecompilerSettings(LanguageVersion.Latest);
@@ -36,7 +36,7 @@ namespace NetAmermaid
         /// that can be used to determine whether a member should be hidden.</summary>
         private bool IsHidden(IEntity entity) => CSharpDecompiler.MemberIsHidden(entity.ParentModule!.PEFile, entity.MetadataToken, decompilerSettings);
 
-        public CD BuildDiagrammer(string? include, string? exclude)
+        public CD BuildModel(string? include, string? exclude)
         {
             IEnumerable<ITypeDefinition> allTypes = decompiler.TypeSystem.MainModule.TypeDefinitions;
 
@@ -51,7 +51,7 @@ namespace NetAmermaid
             {
                 Name = ns.Key,
                 Types = ns.OrderBy(t => t.FullName).Select(type =>
-                    type.Kind == TypeKind.Enum ? GetEnumDefinition(type) : GetDefinition(type)).ToArray()
+                    type.Kind == TypeKind.Enum ? BuildEnum(type) : BuildType(type)).ToArray()
             }).OrderBy(ns => ns.Name).ToArray();
 
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
@@ -84,7 +84,7 @@ namespace NetAmermaid
             return uniqueIds;
         }
 
-        private CD.Type GetEnumDefinition(ITypeDefinition type)
+        private CD.Type BuildEnum(ITypeDefinition type)
         {
             IField[] fields = type.GetFields(f => f.IsConst && f.IsStatic && f.Accessibility == Accessibility.Public).ToArray();
             Dictionary<string, string>? docs = xmlDocs?.GetXmlDocs(type, fields);
@@ -102,7 +102,7 @@ namespace NetAmermaid
             };
         }
 
-        private CD.Type GetDefinition(ITypeDefinition type)
+        private CD.Type BuildType(ITypeDefinition type)
         {
             string typeId = GetId(type);
             IMethod[] methods = GetMethods(type).ToArray();
