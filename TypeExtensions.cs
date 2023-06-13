@@ -6,6 +6,7 @@ namespace NetAmermaid
     internal static class TypeExtensions
     {
         internal static bool IsObject(this IType t) => t.IsKnownType(KnownTypeCode.Object);
+        internal static bool IsInterface(this IType t) => t.Kind == TypeKind.Interface;
 
         internal static bool TryGetNullableType(this IType type, [MaybeNullWhen(false)] out IType typeArg)
         {

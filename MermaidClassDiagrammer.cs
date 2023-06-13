@@ -136,7 +136,7 @@ namespace NetAmermaid
                 .Join(Environment.NewLine + "    ", pad: true);
 
             // see https://mermaid.js.org/syntax/classDiagram.html#annotations-on-classes
-            string? annotation = type.Kind == TypeKind.Interface ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
+            string? annotation = type.IsInterface() ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
 
             string body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + Environment.NewLine;
 
@@ -204,8 +204,7 @@ namespace NetAmermaid
 
         private (string, string)? FormatBaseType(IType type, string typeId)
         {
-            IType? relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t =>
-                t.Kind != TypeKind.Interface && !t.IsObject());
+            IType? relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t => !t.IsInterface() && !t.IsObject());
 
             if (relevantBaseType == null) return default;
             string baseTypeId = GetId(relevantBaseType);
@@ -217,7 +216,7 @@ namespace NetAmermaid
 
         private Dictionary<string, string>? FormatInterfaces(ITypeDefinition type, string typeId)
         {
-            var interfaces = type.DirectBaseTypes.Where(t => t.Kind == TypeKind.Interface).ToArray();
+            var interfaces = type.DirectBaseTypes.Where(t => t.IsInterface()).ToArray();
             if (interfaces.Length == 0) return null;
 
             return interfaces.Select(iface =>
