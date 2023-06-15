@@ -44,15 +44,11 @@ namespace NetAmermaid
             labels = new();
             outsideReferences = new();
 
-            var namespaces = selectedTypes.GroupBy(t => t.Namespace).Select(ns => new CD.Namespace
-            {
-                Name = ns.Key,
-                Types = ns.OrderBy(t => t.FullName).Select(type =>
-                    type.Kind == TypeKind.Enum ? BuildEnum(type) : BuildType(type)).ToArray()
-            }).OrderBy(ns => ns.Name).ToArray();
+            var typesByNamespace = selectedTypes.GroupBy(t => t.Namespace).OrderBy(g => g.Key).ToDictionary(g => g.Key,
+                ns => ns.OrderBy(t => t.FullName).Select(type => type.Kind == TypeKind.Enum ? BuildEnum(type) : BuildType(type)).ToArray());
 
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
-            return new CD { Namespaces = namespaces, OutsideReferences = outsideReferences, Excluded = excluded };
+            return new CD { TypesByNamespace = typesByNamespace, OutsideReferences = outsideReferences, Excluded = excluded };
         }
 
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)

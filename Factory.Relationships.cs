@@ -30,19 +30,25 @@ namespace NetAmermaid
                 return isGeneric == true && selectedTypes!.Contains(elementType) ? (property, elementType) : default;
             }).Where(pair => pair != default).ToArray();
 
-        private CD.Relationship? GetBaseType(IType type)
+        /// <summary>Returns the relevant direct super type <paramref name="type"/> inherits from
+        /// in a format matching <see cref="CD.Type.BaseType"/>.</summary>
+        private Dictionary<string, string?>? GetBaseType(IType type)
         {
             IType? relevantBaseType = type.DirectBaseTypes.SingleOrDefault(t => !t.IsInterface() && !t.IsObject());
-            return relevantBaseType == null ? default : BuildRelationship(relevantBaseType);
+            return relevantBaseType == null ? default : new[] { BuildRelationship(relevantBaseType) }.ToDictionary(r => r.to, r => r.label);
         }
 
-        private IEnumerable<CD.Relationship>? GetInterfaces(ITypeDefinition type)
+        /// <summary>Returns the direct interfaces implemented by <paramref name="type"/>
+        /// in a format matching <see cref="CD.Type.Interfaces"/>.</summary>
+        private Dictionary<string, string?>? GetInterfaces(ITypeDefinition type)
         {
             var interfaces = type.DirectBaseTypes.Where(t => t.IsInterface()).ToArray();
-            return interfaces.Length == 0 ? null : interfaces.Select(i => BuildRelationship(i));
+            return interfaces.Length == 0 ? null : interfaces.Select(i => BuildRelationship(i)).ToDictionary(r => r.to, r => r.label);
         }
 
-        private CD.Relationship[]? MapHasOneRelations(Dictionary<IType, IProperty[]> hasOneRelationsByType, IType type)
+        /// <summary>Returns the one-to-one relations from <paramref name="type"/> to other <see cref="CD.Type"/>s
+        /// in a format matching <see cref="CD.Relationships.HasOne"/>.</summary>
+        private Dictionary<string, string>? MapHasOneRelations(Dictionary<IType, IProperty[]> hasOneRelationsByType, IType type)
             => hasOneRelationsByType.GetValue(type)?.Select(p =>
             {
                 IType type = p.ReturnType;
@@ -55,26 +61,30 @@ namespace NetAmermaid
                 }
 
                 return BuildRelationship(type, label);
-            }).ToArray();
+            }).ToDictionary(r => r.label!, r => r.to);
 
-        private CD.Relationship[]? MapHasManyRelations(Dictionary<IType, (IProperty property, IType elementType)[]> hasManyRelationsByType, IType type)
+        /// <summary>Returns the one-to-many relations from <paramref name="type"/> to other <see cref="CD.Type"/>s
+        /// in a format matching <see cref="CD.Relationships.HasMany"/>.</summary>
+        private Dictionary<string, string>? MapHasManyRelations(Dictionary<IType, (IProperty property, IType elementType)[]> hasManyRelationsByType, IType type)
             => hasManyRelationsByType.GetValue(type)?.Select(relation =>
             {
                 (IProperty property, IType elementType) = relation;
                 return BuildRelationship(elementType, property.Name);
-            }).ToArray();
+            }).ToDictionary(r => r.label!, r => r.to);
 
         /// <summary>Builds references to super types and (one/many) relations,
         /// recording outside references on the way and applying labels if required.</summary>
         /// <param name="type">The type to reference.</param>
         /// <param name="propertyName">Used only for property one/many relations.</param>
-        private CD.Relationship BuildRelationship(IType type, string? propertyName = null)
+        private (string to, string? label) BuildRelationship(IType type, string? propertyName = null)
         {
             (string id, IType? openGeneric) = GetIdAndOpenGeneric(type);
             AddOutsideReference(id, openGeneric ?? type);
 
             // label the relation with the property name if provided or the closed generic type for super types
-            return new CD.Relationship { To = id, Label = propertyName ?? (openGeneric == null ? null : GetName(type)) };
+            string? label = propertyName ?? (openGeneric == null ? null : GetName(type));
+
+            return (to: id, label);
         }
 
         private void AddOutsideReference(string typeId, IType type)

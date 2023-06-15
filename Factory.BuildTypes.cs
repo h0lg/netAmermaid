@@ -19,7 +19,7 @@ namespace NetAmermaid
             {
                 Id = typeId,
                 Name = name == typeId ? null : name,
-                DiagramDefinition = $"class {typeId} {{{body}}}",
+                Body = $"class {typeId} {{{body}}}",
                 XmlDocs = docs
             };
         }
@@ -87,12 +87,12 @@ namespace NetAmermaid
             {
                 Id = typeId,
                 Name = typeName == typeId ? null : typeName,
-                DiagramDefinition = $"class {typeId} {{{body}}}",
+                Body = $"class {typeId} {{{body}}}",
                 HasOne = MapHasOneRelations(hasOneRelationsByType, type),
                 HasMany = MapHasManyRelations(hasManyRelationsByType, type),
                 BaseType = GetBaseType(type),
-                Interfaces = GetInterfaces(type)?.ToArray(),
-                InheritedMembersByDeclaringType = inheritedMembersByType,
+                Interfaces = GetInterfaces(type),
+                Inherited = inheritedMembersByType,
                 XmlDocs = docs
             };
         }

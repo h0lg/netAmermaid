@@ -301,7 +301,7 @@ const mermaidExtensions = (() => {
         processTypes: (typeDetails, getTypeLabel, direction, showInherited) => {
             const detailedTypes = Object.keys(typeDetails), // types that will be rendered including their members and relations
                 xmlDocs = {}, // to be appended with docs of selected types below
-                getAncestorTypes = typeDetails => Object.keys(typeDetails.InheritedMembersByDeclaringType),
+                getAncestorTypes = typeDetails => Object.keys(typeDetails.Inherited),
                 isRendered = type => detailedTypes.includes(type),
 
                 mayNeedLabelling = new Set(),
@@ -335,7 +335,7 @@ const mermaidExtensions = (() => {
                     const ancestorTypes = getAncestorTypes(details);
 
                     // only include inherited members in sub classes if they aren't already rendered in a super class
-                    for (let [ancestorType, members] of Object.entries(details.InheritedMembersByDeclaringType)) {
+                    for (let [ancestorType, members] of Object.entries(details.Inherited)) {
                         if (isRendered(ancestorType)) continue; // inherited members will be rendered in base type
 
                         // find inherited props already displayed by detailed base types
@@ -357,10 +357,11 @@ const mermaidExtensions = (() => {
             // process selected types
             for (let [typeId, details] of Object.entries(typeDetails)) {
                 mayNeedLabelling.add(typeId);
-                diagram += details.DiagramDefinition + '\n\n';
+                diagram += details.Body + '\n\n';
 
                 if (details.BaseType) // expecting object; only process if not null or undefined
-                    renderSuperType(details.BaseType.To, '--', typeId, details.BaseType.Label, showInherited.types);
+                    for (let [baseTypeId, label] of Object.entries(details.BaseType))
+                        renderSuperType(baseTypeId, '--', typeId, label, showInherited.types);
 
                 if (details.Interfaces) // expecting object; only process if not null or undefined
                     for (let [ifaceId, label] of Object.entries(details.Interfaces))
@@ -369,9 +370,7 @@ const mermaidExtensions = (() => {
                 renderRelations(typeId, details.HasOne);
                 renderRelations(typeId, details.HasMany, true);
                 xmlDocs[typeId] = details.XmlDocs;
-
-                if (showInherited.members && details.InheritedMembersByDeclaringType)
-                    renderInheritedMembers(typeId, details);
+                if (showInherited.members && details.Inherited) renderInheritedMembers(typeId, details);
             }
 
             for (let typeId of mayNeedLabelling) {
@@ -509,7 +508,7 @@ const typeSelector = (() => {
         getOption = typeId => select.querySelector(tags.option + `[value='${typeId}']`);
 
     // fill select list
-    for (let [namespace, types] of Object.entries(model.Namespaces)) {
+    for (let [namespace, types] of Object.entries(model.TypesByNamespace)) {
         let optionParent;
 
         if (namespace) {
@@ -568,7 +567,7 @@ const typeSelector = (() => {
          *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values. */
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
             const namespace = getNamespace(option), typeId = option.value,
-                details = model.Namespaces[namespace][typeId];
+                details = model.TypesByNamespace[namespace][typeId];
 
             return [typeId, details];
         })),

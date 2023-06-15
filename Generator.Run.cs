@@ -33,24 +33,10 @@ namespace NetAmermaid
             {
                 diagrammer.OutsideReferences,
 
-                // convert collections to dictionaries for easier access in JS
-                Namespaces = diagrammer.Namespaces.ToDictionary(ns => ns.Name ?? string.Empty,
-                    ns => ns.Types.ToDictionary(t => t.Id, t => new
-                    {
-                        t.Name,
-                        t.DiagramDefinition,
-                        HasOne = t.HasOne?.ToDictionary(r => r.Label!, r => r.To),
-                        HasMany = t.HasMany?.ToDictionary(r => r.Label!, r => r.To),
-                        t.BaseType,
-                        Interfaces = t.Interfaces?.ToDictionary(r => r.To, r => r.Label),
-                        InheritedMembersByDeclaringType = t.InheritedMembersByDeclaringType?.ToDictionary(p => p.Key, p => new
-                        {
-                            p.Value.FlatMembers,
-                            HasOne = p.Value.HasOne?.ToDictionary(r => r.Label!, r => r.To),
-                            HasMany = p.Value.HasMany?.ToDictionary(r => r.Label!, r => r.To)
-                        }),
-                        t.XmlDocs
-                    }))
+                /* convert collections to dictionaries for easier access in ES using
+                 * for (let [key, value] of Object.entries(dictionary)) */
+                TypesByNamespace = diagrammer.TypesByNamespace.ToDictionary(ns => ns.Key,
+                    ns => ns.Value.ToDictionary(t => t.Id, t => t))
             };
 
             return JsonSerializer.Serialize(jsonModel, new JsonSerializerOptions
