@@ -1087,6 +1087,17 @@ document.onkeydown = async (event) => {
             event.preventDefault();
             return;
         }
+
+        // pulse-animate elements with helping title attributes to point them out
+        if (event.key === 'i') {
+            event.preventDefault();
+            const pulsing = 'pulsing';
+
+            for (let element of document.querySelectorAll('[title],:has(title)')) {
+                element.addEventListener('animationend', () => { element.classList.remove(pulsing); }, { once: true });
+                element.classList.add(pulsing);
+            }
+        }
     }
 };
 
