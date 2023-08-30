@@ -36,7 +36,7 @@ const collapse = (() => {
         toggle = (element, force) => element.classList.toggle(open, force);
 
     return {
-        isOpen, toggle,
+        toggle,
 
         open: element => {
             if (isOpen(element)) return false; // return whether collapse was opened by this process
