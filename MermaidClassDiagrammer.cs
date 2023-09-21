@@ -27,7 +27,11 @@ namespace NetAmermaid
                      * see https://github.com/mermaid-js/mermaid/issues/3188 */
                     if (type.IsGenericType && (type.GenericTypeArguments.Length > 1
                         || type.FullName == null)) // workaround e.g. for parameter or return types for methods with a type parameter
-                        return type.Name.Substring(0, type.Name.IndexOf('`')) + $"~{type.GenericTypeArguments.Length}~";
+                    {
+                        var startOfGenericDef = type.Name.IndexOf('`');
+                        var nonGenericName = startOfGenericDef < 0 ? type.Name : type.Name.Substring(0, startOfGenericDef);
+                        return nonGenericName + $"~{type.GenericTypeArguments.Length}~";
+                    }
 
                     var name = type.FullName ?? type.Name;
 
