@@ -32,10 +32,38 @@ namespace NetAmermaid
             $" You only need to set this if a) you want your diagrams annotated with them and b) the file name differs from that of the {assembly}.")]
         public string? XmlDocs { get; set; }
 
+        [Option('r', "resolve-folders", HelpText = $"Space-separated list of folders to search if assembly lookup fails." +
+            $" Example might be \"C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App\\6.0.21\".")]
+        public IEnumerable<string>? AssemblyResolveFolders { get; set; }
+
         public void Run()
         {
             var assemblyPath = GetPath(Assembly);
             var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
+
+            if (AssemblyResolveFolders != null)
+            {
+                List<string> assemblyResolveFoldersFinal = new(AssemblyResolveFolders);
+                assemblyResolveFoldersFinal.Insert(0, Path.GetDirectoryName(assemblyPath));
+
+                AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
+                {
+                    string assemblyName = args.Name.Substring(0, args.Name.IndexOf(","));
+
+                    foreach (string assemblyResolveFolder in assemblyResolveFoldersFinal)
+                    {
+                        string candidateAssemblyFilePath = Path.Combine(assemblyResolveFolder, $"{assemblyName}.dll");
+
+                        if (File.Exists(candidateAssemblyFilePath))
+                        {
+                            return System.Reflection.Assembly.LoadFrom(candidateAssemblyFilePath);
+                        }
+                    }
+
+                    return null;
+                };
+            }
+
             var assembly = System.Reflection.Assembly.LoadFrom(assemblyPath);
             var types = FilterTypes(assembly);
 
