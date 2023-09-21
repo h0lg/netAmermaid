@@ -6,3 +6,5 @@
 /html/obj
 /html/styles.css
 *.user
+/Properties/launchSettings.json
+/.cr
