@@ -15,13 +15,13 @@ const checkable = (() => {
         getValue: (name, context) => getInput(name, checked, context).value,
 
         onChange: (name, handle, context) => {
-            for (let radio of getInputs(name, context)) radio.onchange = handle;
+            for (let input of getInputs(name, context)) input.onchange = handle;
         },
 
         setChecked: (name, value, triggerChange, context) => {
-            const radio = getInput(name, `[value="${value}"]`, context);
-            radio.checked = true;
-            if (triggerChange !== false) triggerChangeOn(radio);
+            const input = getInput(name, `[value="${value}"]`, context);
+            input.checked = true;
+            if (triggerChange !== false) triggerChangeOn(input);
         }
     };
 })();

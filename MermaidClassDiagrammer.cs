@@ -372,7 +372,7 @@ namespace NetAmermaid
                 || !m.DeclaringType.IsObject()
                     && (!m.IsOverride || !InheritanceHelper.GetBaseMember(m).DeclaringType.IsObject())));
 
-        internal string GetLoadedAssemblyVersion()
+        internal string GetSourceAssemblyVersion()
             => decompiler.TypeSystem.MainModule.PEFile.Metadata.GetAssemblyDefinition().Version.ToString();
     }
 }
