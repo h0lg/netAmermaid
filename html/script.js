@@ -68,19 +68,30 @@ const mermaidExtensions = (() => {
         /* int indexes as well as string values can identify a valid log level;
             see log levels and logger definition at https://github.com/mermaid-js/mermaid/blob/develop/packages/mermaid/src/logger.ts .
             Note the names correspond to console output methods https://developer.mozilla.org/en-US/docs/Web/API/console .*/
-        const names = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
+        const names = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'],
+            maxIndex = names.length - 1,
 
-        let requested; // the log level of the in-coming config or the default
+            getIndex = level => {
+                const index = Number.isInteger(level) ? level : names.indexOf(level);
+                return index < 0 ? maxIndex : Math.min(index, maxIndex); // normalize, but return maxIndex (i.e. lowest level) by default
+            };
+
+        let requested; // the log level index of the in-coming config or the default
 
         return {
-            setRequested: level => {
-                requested = Number.isInteger(level) && 0 <= level && level <= names.length ? level
-                    : names.includes(level) ? level : 5;
-            },
+            /** Sets the desired log level.
+             * @param {string|int} level The name or index of the desired log level. */
+            setRequested: level => { requested = getIndex(level); },
+
+            /** Returns all names above (not including) the given level.
+             * @param {int} level The excluded lower boundary log level index (not name).
+             * @returns an array. */
             above: level => names.slice(level + 1),
 
-            isEnabled: level => Number.isInteger(requested) && requested <= level
-                || names.slice(0, level + 1).includes(requested)
+            /** Indicates whether the log level is configured to be enabled.
+             * @param {string|int} level The log level to test.
+             * @returns a boolean. */
+            isEnabled: level => requested <= getIndex(level)
         };
     })();
 
