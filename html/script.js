@@ -62,6 +62,76 @@ const notify = (() => {
     };
 })();
 
+const output = (function () {
+    const output = getById('output'),
+        hasSVG = () => output.childElementCount > 0,
+        getSVG = () => hasSVG() ? output.children[0] : null,
+
+        updateSvgViewBox = (svg, viewBox) => {
+            if (svg.originalViewBox === undefined) {
+                const vb = svg.viewBox.baseVal;
+                svg.originalViewBox = { x: vb.x, y: vb.y, width: vb.width, height: vb.height, };
+            }
+
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+        };
+
+    // enable zooming SVG using Ctrl + mouse wheel
+    const zoomFactor = 0.1, panFactor = 2023; // to go with the Zeitgeist
+
+    output.addEventListener('wheel', event => {
+        if (!event.ctrlKey || !hasSVG()) return;
+        event.preventDefault();
+
+        const svg = getSVG(),
+            delta = event.deltaY < 0 ? 1 : -1,
+            zoomDelta = 1 + zoomFactor * delta,
+            viewBox = svg.viewBox.baseVal;
+
+        viewBox.width *= zoomDelta;
+        viewBox.height *= zoomDelta;
+        updateSvgViewBox(svg, viewBox);
+    });
+
+    // enable panning SVG by grabbing and dragging
+    let isPanning = false, panStartX = 0, panStartY = 0;
+
+    output.addEventListener('mousedown', event => {
+        isPanning = true;
+        panStartX = event.clientX;
+        panStartY = event.clientY;
+    });
+
+    output.addEventListener('mouseup', () => { isPanning = false; });
+
+    output.addEventListener('mousemove', event => {
+        if (!isPanning || !hasSVG()) return;
+        event.preventDefault();
+
+        const svg = getSVG(),
+            viewBox = svg.viewBox.baseVal,
+            dx = event.clientX - panStartX,
+            dy = event.clientY - panStartY;
+
+        viewBox.x -= dx * panFactor / viewBox.width;
+        viewBox.y -= dy * panFactor / viewBox.height;
+        panStartX = event.clientX;
+        panStartY = event.clientY;
+        updateSvgViewBox(svg, viewBox);
+    });
+
+    return {
+        getDiagramTitle: () => output.dataset.title,
+        setSVG: svg => { output.innerHTML = svg; },
+        getSVG,
+
+        resetZoomAndPan: () => {
+            const svg = getSVG();
+            if (svg !== null) updateSvgViewBox(svg, svg.originalViewBox);
+        }
+    };
+})();
+
 const mermaidExtensions = (() => {
 
     const logLevel = (() => {
@@ -146,8 +216,8 @@ const mermaidExtensions = (() => {
 
     let renderedEdges = []; // contains info about the arrows between types on the diagram once rendered
 
-    function getRelationLabels(svgParent, type) {
-        const edgeLabels = [...svgParent.querySelectorAll('.edgeLabels span.edgeLabel span')],
+    function getRelationLabels(svg, type) {
+        const edgeLabels = [...svg.querySelectorAll('.edgeLabels span.edgeLabel span')],
             extension = 'extension';
 
         return renderedEdges.filter(e => e.v === type // type name needs to match
@@ -162,7 +232,7 @@ const mermaidExtensions = (() => {
                     "Tried to find a relation label for the following edge (by its value.label) but couldn't.", edge);
                 else { // there are multiple edge labels with the same HTML (i.e. matching relation name)
                     // find the path that is rendered for the edge
-                    const path = svgParent.querySelector('.edgePaths>path.relation#' + edge.value.id),
+                    const path = svg.querySelector('.edgePaths>path.relation#' + edge.value.id),
                         labelsByDistance = labels.sort((a, b) => getDistance(path, a) - getDistance(path, b));
 
                     console.warn('Found multiple relation labels matching the following edge (by its value.label). Returning the closest/first.',
@@ -224,6 +294,7 @@ const mermaidExtensions = (() => {
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
+                + 'accTitle: ' + output.getDiagramTitle() + '\n'
                 + 'direction ' + direction + '\n\n';
 
             // process selected types
@@ -255,8 +326,8 @@ const mermaidExtensions = (() => {
             return { diagram, detailedTypes, xmlDocs };
         },
 
-        postProcess: (svgParent, options) => {
-            for (let entity of svgParent.querySelectorAll('g.nodes>g').values()) {
+        postProcess: (svg, options) => {
+            for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
                 const title = entity.querySelector('.classTitle'),
                     name = title.textContent,
                     docs = structuredClone((options.xmlDocs || [])[name]); // clone to have a modifyable collection without affecting the original
@@ -264,7 +335,7 @@ const mermaidExtensions = (() => {
                 // splice in XML documentation as label titles if available
                 if (docs) {
                     const typeKey = '', nodeLabel = 'span.nodeLabel',
-                        relationLabels = getRelationLabels(svgParent, name),
+                        relationLabels = getRelationLabels(svg, name),
 
                         setDocs = (label, member) => {
                             label.title = docs[member];
@@ -466,12 +537,10 @@ const render = async isRestoringState => {
     /* Renders response and deconstructs returned object because we're only interested in the svg.
         Note that the ID supplied as the first argument must not match any existing element ID
         unless you want its contents to be replaced. See https://mermaid.js.org/config/usage.html#api-usage */
-    const { svg } = await mermaid.render('foo', diagram),
-        output = getById('output');
+    const { svg } = await mermaid.render('foo', diagram);
+    output.setSVG(svg);
 
-    output.innerHTML = svg;
-
-    mermaidExtensions.postProcess(output, {
+    mermaidExtensions.postProcess(output.getSVG(), {
         xmlDocs,
 
         onTypeClick: async (event, name) => {
@@ -739,6 +808,7 @@ document.onkeydown = async (event) => {
             case 'ArrowRight': layoutDirection.set('LR', event); return;
             case arrowUp: layoutDirection.set('BT', event); return;
             case arrowDown: layoutDirection.set('TB', event); return;
+            case '0': output.resetZoomAndPan(); return;
         }
     }
 
