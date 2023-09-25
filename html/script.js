@@ -810,6 +810,86 @@ const exportOptions = (() => {
     };
 })();
 
+// displays pressed keys and highlights mouse cursor for teaching usage and other presentations
+const controlDisplay = (function () {
+    let used = new Set(), enabled = false, wheelTimeout;
+
+    const alt = 'Alt',
+        display = getById('pressed-keys'), // a label displaying the keys being pressed and mousewheel being scrolled
+        mouse = getById('mouse'), // a circle tracking the mouse to make following it easier
+
+        translateKey = key => key.length === 1 ? key.toUpperCase() : key,
+
+        updateDisplay = () => {
+            display.textContent = [...used].join(' + ');
+            display.classList.toggle('hidden', used.size === 0);
+        },
+
+        eventHandlers = {
+            keydown: event => {
+                if (event.altKey) used.add(alt); // handle separately because Alt key alone doesn't trigger a key event
+                used.add(translateKey(event.key));
+                updateDisplay();
+            },
+
+            keyup: event => {
+                setTimeout(() => {
+                    if (!event.altKey && used.has(alt)) used.delete(alt);
+                    used.delete(translateKey(event.key));
+                    updateDisplay();
+                }, 500);
+            },
+
+            wheel: event => {
+                const label = 'wheel ' + (event.deltaY < 0 ? 'up' : 'down'),
+                    wasUsed = used.has(label);
+
+                if (wasUsed) {
+                    if (wheelTimeout) clearTimeout(wheelTimeout);
+                } else {
+                    used.add(label);
+                    updateDisplay();
+                }
+
+                // automatically remove
+                wheelTimeout = setTimeout(() => {
+                    used.delete(label);
+                    updateDisplay();
+                    wheelTimeout = undefined;
+                }, 500);
+            },
+
+            mousemove: event => {
+                mouse.style.top = event.clientY + 'px';
+                mouse.style.left = event.clientX + 'px';
+            },
+
+            mousedown: () => { mouse.classList.add('down'); },
+            mouseup: () => { setTimeout(() => { mouse.classList.remove('down'); }, 300); }
+        };
+
+    return {
+        toggle: () => {
+            enabled = !enabled;
+
+            if (enabled) {
+                mouse.hidden = false;
+
+                for (let [event, handler] of Object.entries(eventHandlers))
+                    document.addEventListener(event, handler);
+            } else {
+                mouse.hidden = true;
+
+                for (let [event, handler] of Object.entries(eventHandlers))
+                    document.removeEventListener(event, handler);
+
+                used.clear();
+                updateDisplay();
+            }
+        }
+    };
+})();
+
 // key bindings
 document.onkeydown = async (event) => {
     const arrowUp = 'ArrowUp', arrowDown = 'ArrowDown';
@@ -824,6 +904,10 @@ document.onkeydown = async (event) => {
                 return;
             case 's': exportOptions.quickSave(event); return;
             case 'c': exportOptions.copy(event); return;
+            case 'i':
+                event.preventDefault();
+                controlDisplay.toggle();
+                return;
             case 'ArrowLeft': layoutDirection.set('RL', event); return;
             case 'ArrowRight': layoutDirection.set('LR', event); return;
             case arrowUp: layoutDirection.set('BT', event); return;

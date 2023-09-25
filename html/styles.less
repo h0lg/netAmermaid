@@ -32,8 +32,8 @@
     color: darkgoldenrod;
 }
 
-.darkenBg() {
-    background-color: #0003;
+.darkenBg(@times: 1) {
+    background-color: rgba(0,0,0, calc(3/16 * @times));
 }
 
 .brightenBg() {
@@ -315,6 +315,39 @@ select {
         &.leaving {
             animation: 1s ease-in-out fadeOut;
         }
+    }
+}
+
+#pressed-keys {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 3em;
+    bottom: 1em;
+    opacity: 1;
+    border-radius: .5em;
+    padding: .5em;
+    .darkenBg(2);
+    .useBrightText;
+
+    &.hidden {
+        transition: opacity 0.5s ease-in-out;
+        opacity: 0;
+    }
+}
+
+#mouse {
+    position: fixed;
+    transform: translateX(-50%) translateY(-50%);
+    height: 2em;
+    width: 2em;
+    pointer-events: none;
+    z-index: 9999;
+    border-radius: 1em;
+    border: solid .1em yellow;
+
+    &.down {
+        background-color: #ff08;
     }
 }
 
