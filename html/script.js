@@ -352,7 +352,6 @@ const mermaidExtensions = (() => {
 
             // init diagram code with header and layout direction to be appended to below
             let diagram = 'classDiagram' + '\n'
-                + 'accTitle: ' + output.getDiagramTitle() + '\n'
                 + 'direction ' + direction + '\n\n';
 
             // process selected types
@@ -381,7 +380,7 @@ const mermaidExtensions = (() => {
             }
 
             diagram = cleanUpDiagramMmd(diagram);
-            lastRenderedDiagram = diagram;
+            lastRenderedDiagram = diagram; // store diagram syntax for export
             return { diagram, detailedTypes, xmlDocs };
         },
 
@@ -640,11 +639,12 @@ const render = async isRestoringState => {
         typeSelector.getSelected(), typeSelector.getLabel, layoutDirection.get(), inheritanceFilter.getFlags());
 
     console.info(diagram);
+    const titledDiagram = diagram + '\naccTitle: ' + output.getDiagramTitle().replaceAll('\n', '#10;') + '\n';
 
     /* Renders response and deconstructs returned object because we're only interested in the svg.
         Note that the ID supplied as the first argument must not match any existing element ID
         unless you want its contents to be replaced. See https://mermaid.js.org/config/usage.html#api-usage */
-    const { svg } = await mermaid.render('foo', diagram);
+    const { svg } = await mermaid.render('foo', titledDiagram);
     output.setSVG(svg);
 
     mermaidExtensions.postProcess(output.getSVG(), {
