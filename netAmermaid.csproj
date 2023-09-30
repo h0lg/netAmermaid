@@ -11,6 +11,7 @@
     <PackageProjectUrl>https://github.com/h0lg/netAmermaid</PackageProjectUrl>
     <Description>Creates an HTML app to generate Mermaid class diagrams from the types contained in a .Net assembly.</Description>
     <RepositoryUrl>https://github.com/h0lg/netAmermaid</RepositoryUrl>
+    <VersionPrefix>2.0.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
