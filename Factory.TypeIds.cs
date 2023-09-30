@@ -15,7 +15,7 @@ namespace NetAmermaid
 
             // simplified handling for the majority of unique types
             foreach (var group in groups.Where(g => g.Count() == 1))
-                uniqueIds[group.First()] = group.Key;
+                uniqueIds[group.First()] = SanitizeTypeName(group.Key);
 
             // number non-unique types
             foreach (var group in groups.Where(g => g.Count() > 1))
@@ -42,12 +42,14 @@ namespace NetAmermaid
             // types excluded by FilterTypes
             string? typeParams = type.TypeParameterCount == 0 ? null : ("_" + type.TypeParameters.Select(GetId).Join("_"));
 
-            var id = type.FullName.Replace('.', '_')
-                .Replace('<', '_').Replace('>', '_') // for module
+            var id = SanitizeTypeName(type.FullName.Replace('.', '_'))
                 + typeParams; // to achive uniqueness for types with same FullName (i.e. generic overloads)
 
             uniqueIds![type] = id; // update dictionary to avoid re-generation
             return (id, openGeneric);
         }
+
+        private static string SanitizeTypeName(string typeName)
+            => typeName.Replace('<', '_').Replace('>', '_'); // for module of executable
     }
 }

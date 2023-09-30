@@ -30,7 +30,7 @@ namespace NetAmermaid
 
                 if (typeDefinition.KnownTypeCode == KnownTypeCode.None)
                 {
-                    if (type.DeclaringType == null) return type.Name; // for module
+                    if (type.DeclaringType == null) return type.Name.Replace('<', '❰').Replace('>', '❱'); // for module of executable
                     else return type.DeclaringType.Name + '+' + type.Name; // nested types
                 }
 
