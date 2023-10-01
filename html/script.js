@@ -424,16 +424,13 @@ const mermaidExtensions = (() => {
                             related = relationLabels.find(l => l.textContent === member);
 
                         if (related) matchingLabels.push(related);
+                        if (matchingLabels.length === 0) continue; // members may be rendered in an ancestor type
 
-                        if (matchingLabels.length === 0) console.error(
-                            `Expected to find either a member or relation label for ${title.textContent}.${member} to attach the XML documentation to but found none.`);
-                        else {
-                            if (matchingLabels.length > 1) console.warn(
-                                `Expected to find one member or relation label for ${title.textContent}.${member}`
-                                + ' to attach the XML documentation to but found multiple. Applying the first.', matchingLabels);
+                        if (matchingLabels.length > 1) console.warn(
+                            `Expected to find one member or relation label for ${title.textContent}.${member}`
+                            + ' to attach the XML documentation to but found multiple. Applying the first.', matchingLabels);
 
-                            documentOwnLabel(matchingLabels[0], member);
-                        }
+                        documentOwnLabel(matchingLabels[0], member);
                     }
                 }
 
