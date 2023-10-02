@@ -338,12 +338,13 @@ const mermaidExtensions = (() => {
                     for (let [ancestorType, members] of Object.entries(details.Inherited)) {
                         if (isRendered(ancestorType)) continue; // inherited members will be rendered in base type
 
-                        // find inherited props already displayed by detailed base types
-                        let renderedInheritedProps = ancestorTypes.filter(t => detailedTypes.includes(t)) // get detailed ancestor types
+                        let ancestorsOfDetailedAncestors = ancestorTypes.filter(t => detailedTypes.includes(t)) // get detailed ancestor types
                             .map(type => getAncestorTypes(typeDetails[type])) // select their ancestor types
                             .reduce((union, ancestors) => union.concat(ancestors), []); // squash them into a one-dimensional array (ignoring duplicates)
 
-                        if (renderedInheritedProps.includes(ancestorType)) continue;
+                        // skip displaying inherited members already displayed by detailed ancestor types
+                        if (ancestorsOfDetailedAncestors.includes(ancestorType)) continue;
+
                         diagram += members.FlatMembers + '\n';
                         renderRelations(typeId, members.HasOne);
                         renderRelations(typeId, members.HasMany, true);
