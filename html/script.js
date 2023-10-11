@@ -445,14 +445,15 @@ const mermaidExtensions = (() => {
 })();
 
 const state = (() => {
-    const originalTitle = document.head.getElementsByTagName('title')[0].textContent;
+    const typeUrlDelimiter = '-',
+        originalTitle = document.head.getElementsByTagName('title')[0].textContent;
 
     const restore = async data => {
         if (data.d) layoutDirection.set(data.d);
 
         if (data.t) {
-            inheritanceFilter.setFlagHash(data.i || ''); // if types are set, enable deselcting all options
-            typeSelector.setSelected(data.t);
+            inheritanceFilter.setFlagHash(data.i || ''); // if types are set, enable deselecting all options
+            typeSelector.setSelected(data.t.split(typeUrlDelimiter));
             await render(true);
         }
     };
@@ -480,7 +481,7 @@ const state = (() => {
     return {
         update: () => {
             const types = typeSelector.getSelected(),
-                t = Object.keys(types),
+                t = Object.keys(types).join(typeUrlDelimiter),
                 d = layoutDirection.get(),
                 i = inheritanceFilter.getFlagHash(),
                 data = { t, d, i },
@@ -493,7 +494,7 @@ const state = (() => {
         },
         restore: async () => {
             const search = new URLSearchParams(location.search);
-            await restore({ d: search.get('d'), i: search.get('i'), t: search.getAll('t') });
+            await restore({ d: search.get('d'), i: search.get('i'), t: search.get('t') });
         }
     };
 })();
