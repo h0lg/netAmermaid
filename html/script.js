@@ -493,6 +493,7 @@ const state = (() => {
             document.title = (typeNames.length ? typeNames.join(', ') + ' - ' : '') + originalTitle;
         },
         restore: async () => {
+            if (!location.search) return; // assume fresh open and don't try to restore state, preventing inheritance options from being unset
             const search = new URLSearchParams(location.search);
             await restore({ d: search.get('d'), i: search.get('i'), t: search.get('t') });
         }
