@@ -13,7 +13,7 @@ namespace NetAmermaid
             string name = GetName(type), typeId = GetId(type);
 
             var body = fields.Select(f => f.Name).Prepend("<<Enumeration>>")
-                .Join(Environment.NewLine + "    ", pad: true).TrimEnd(' ');
+                .Join(CD.NewLine + "    ", pad: true).TrimEnd(' ');
 
             return new CD.Type
             {
@@ -50,12 +50,12 @@ namespace NetAmermaid
             string members = flatPropertiesByType.GetValue(type).FormatAll(FormatFlatProperty)
                 .Concat(methodsByType.GetValue(type).FormatAll(FormatMethod))
                 .Concat(fieldsByType.GetValue(type).FormatAll(FormatField))
-                .Join(Environment.NewLine + "    ", pad: true);
+                .Join(CD.NewLine + "    ", pad: true);
 
             // see https://mermaid.js.org/syntax/classDiagram.html#annotations-on-classes
             string? annotation = type.IsInterface() ? "Interface" : type.IsAbstract ? type.IsSealed ? "Service" : "Abstract" : null;
 
-            string body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + Environment.NewLine;
+            string body = annotation == null ? members.TrimEnd(' ') : members + $"<<{annotation}>>" + CD.NewLine;
             #endregion
 
             Dictionary<string, string>? docs = xmlDocs?.GetXmlDocs(type, fields, properties, methods);
@@ -74,7 +74,7 @@ namespace NetAmermaid
 
                     return new CD.Type.InheritedMembers
                     {
-                        FlatMembers = flatMembers.Any() ? flatMembers.Join(Environment.NewLine) : null,
+                        FlatMembers = flatMembers.Any() ? flatMembers.Join(CD.NewLine) : null,
                         HasOne = MapHasOneRelations(hasOneRelationsByType, t),
                         HasMany = MapHasManyRelations(hasManyRelationsByType, t)
                     };

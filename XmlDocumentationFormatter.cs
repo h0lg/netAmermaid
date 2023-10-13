@@ -47,7 +47,7 @@ namespace NetAmermaid
         {
             string? comment = docs.GetDocumentation(entity)?
                 .ReplaceAll(new[] { "<summary>", "</summary>" }, null)
-                .ReplaceAll(new[] { "<para>", "</para>" }, Environment.NewLine).Trim() // to format
+                .ReplaceAll(new[] { "<para>", "</para>" }, ClassDiagrammer.NewLine).Trim() // to format
                 .Replace('<', '[').Replace('>', ']'); // to prevent ugly escaped output
 
             return comment == null ? null : noiseAndPadding.Replace(comment, string.Empty).NormalizeHorizontalWhiteSpace();

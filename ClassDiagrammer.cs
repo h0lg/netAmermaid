@@ -6,6 +6,8 @@ namespace NetAmermaid
     /// Serialized into JSON by <see cref="GenerateHtmlDiagrammer.SerializeModel(ClassDiagrammer)"/>.</summary>
     public sealed class ClassDiagrammer
     {
+        internal const string NewLine = "\n";
+
         /// <summary>Types selectable in the diagrammer, grouped by their
         /// <see cref="System.Type.Namespace"/> to facilitate a structured type selection.</summary>
         internal Dictionary<string, Type[]> TypesByNamespace { get; set; } = null!;
