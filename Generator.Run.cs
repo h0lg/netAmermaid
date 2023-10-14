@@ -10,9 +10,9 @@ namespace NetAmermaid
         {
             var assemblyPath = GetPath(Assembly);
             XmlDocumentationFormatter? xmlDocs = CreateXmlDocsFormatter(assemblyPath);
-            ClassDiagrammerFactory factory = new(assemblyPath, xmlDocs);
-            ClassDiagrammer model = factory.BuildModel(Include, Exclude);
-            GenerateOutput(assemblyPath, model, factory.GetSourceAssemblyVersion());
+            ClassDiagrammerFactory factory = new(xmlDocs);
+            ClassDiagrammer model = factory.BuildModel(assemblyPath, Include, Exclude);
+            GenerateOutput(assemblyPath, model);
         }
 
         private XmlDocumentationFormatter? CreateXmlDocsFormatter(string assemblyPath)
@@ -47,7 +47,7 @@ namespace NetAmermaid
             });
         }
 
-        private void GenerateOutput(string assemblyPath, ClassDiagrammer model, string sourceAssemblyVersion)
+        private void GenerateOutput(string assemblyPath, ClassDiagrammer model)
         {
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
             string modelJson = SerializeModel(model);
@@ -55,8 +55,8 @@ namespace NetAmermaid
             var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
 
             var html = htmlTemplate
-                .Replace("{{assembly}}", Path.GetFileNameWithoutExtension(assemblyPath))
-                .Replace("{{assemblyVersion}}", sourceAssemblyVersion)
+                .Replace("{{sourceAssemblyName}}", model.SourceAssemblyName)
+                .Replace("{{sourceAssemblyVersion}}", model.SourceAssemblyVersion)
                 .Replace("{{builderVersion}}", AssemblyInfo.Version)
                 .Replace("{{repoUrl}}", RepoUrl)
                 .Replace("{{model}}", modelJson)

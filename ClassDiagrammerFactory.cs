@@ -16,23 +16,25 @@ namespace NetAmermaid
     {
         private readonly XmlDocumentationFormatter? xmlDocs;
         private readonly DecompilerSettings decompilerSettings;
-        private readonly CSharpDecompiler decompiler;
 
         private ITypeDefinition[]? selectedTypes;
         private Dictionary<IType, string>? uniqueIds;
         private Dictionary<IType, string>? labels;
         private Dictionary<string, string>? outsideReferences;
 
-        public ClassDiagrammerFactory(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
+        public ClassDiagrammerFactory(XmlDocumentationFormatter? xmlDocs)
         {
             this.xmlDocs = xmlDocs;
-            decompilerSettings = new DecompilerSettings(LanguageVersion.Latest);
-            decompilerSettings.AutomaticProperties = true; // for IsHidden to return true for backing fields
-            decompiler = new CSharpDecompiler(assemblyPath, decompilerSettings);
+
+            decompilerSettings = new DecompilerSettings(LanguageVersion.Latest)
+            {
+                AutomaticProperties = true // for IsHidden to return true for backing fields
+            };
         }
 
-        public CD BuildModel(string? include, string? exclude)
+        public CD BuildModel(string assemblyPath, string? include, string? exclude)
         {
+            CSharpDecompiler decompiler = new(assemblyPath, decompilerSettings);
             IEnumerable<ITypeDefinition> allTypes = decompiler.TypeSystem.MainModule.TypeDefinitions;
 
             selectedTypes = FilterTypes(allTypes,
@@ -44,11 +46,20 @@ namespace NetAmermaid
             labels = new();
             outsideReferences = new();
 
-            var typesByNamespace = selectedTypes.GroupBy(t => t.Namespace).OrderBy(g => g.Key).ToDictionary(g => g.Key,
+            Dictionary<string, CD.Type[]> typesByNamespace = selectedTypes.GroupBy(t => t.Namespace).OrderBy(g => g.Key).ToDictionary(g => g.Key,
                 ns => ns.OrderBy(t => t.FullName).Select(type => type.Kind == TypeKind.Enum ? BuildEnum(type) : BuildType(type)).ToArray());
 
+            MetadataModule mainModule = decompiler.TypeSystem.MainModule;
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
-            return new CD { TypesByNamespace = typesByNamespace, OutsideReferences = outsideReferences, Excluded = excluded };
+
+            return new CD
+            {
+                SourceAssemblyName = mainModule.AssemblyName,
+                SourceAssemblyVersion = mainModule.AssemblyVersion.ToString(),
+                TypesByNamespace = typesByNamespace,
+                OutsideReferences = outsideReferences,
+                Excluded = excluded
+            };
         }
 
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)

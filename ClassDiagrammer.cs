@@ -8,6 +8,9 @@ namespace NetAmermaid
     {
         internal const string NewLine = "\n";
 
+        internal string SourceAssemblyName { get; set; } = null!;
+        internal string SourceAssemblyVersion { get; set; } = null!;
+
         /// <summary>Types selectable in the diagrammer, grouped by their
         /// <see cref="System.Type.Namespace"/> to facilitate a structured type selection.</summary>
         internal Dictionary<string, Type[]> TypesByNamespace { get; set; } = null!;
