@@ -10,12 +10,11 @@ namespace NetAmermaid
         {
             var assemblyPath = GetPath(Assembly);
             XmlDocumentationFormatter? xmlDocs = CreateXmlDocsFormatter(assemblyPath);
-            ClassDiagrammerFactory factory = new(xmlDocs);
-            ClassDiagrammer model = factory.BuildModel(assemblyPath, Include, Exclude);
+            ClassDiagrammer model = BuildModel(assemblyPath, xmlDocs);
             GenerateOutput(assemblyPath, model);
         }
 
-        private XmlDocumentationFormatter? CreateXmlDocsFormatter(string assemblyPath)
+        protected virtual XmlDocumentationFormatter? CreateXmlDocsFormatter(string assemblyPath)
         {
             var xmlDocsPath = XmlDocs == null ? Path.ChangeExtension(assemblyPath, ".xml") : GetPath(XmlDocs);
             XmlDocumentationFormatter? xmlDocs = null;
@@ -26,6 +25,9 @@ namespace NetAmermaid
 
             return xmlDocs;
         }
+
+        protected virtual ClassDiagrammer BuildModel(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
+            => new ClassDiagrammerFactory(xmlDocs).BuildModel(assemblyPath, Include, Exclude);
 
         private static string SerializeModel(ClassDiagrammer diagrammer)
         {

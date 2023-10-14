@@ -62,12 +62,18 @@ namespace NetAmermaid
             };
         }
 
+        /// <summary>The default strategy for pre-filtering the <paramref name="typeDefinitions"/> available in the HTML diagrammer.
+        /// Applies <see cref="IsIncludedByDefault(ITypeDefinition)"/> as well as
+        /// matching by <paramref name="include"/> and not by <paramref name="exclude"/>.</summary>
+        /// <returns>The types to effectively include in the HTML diagrammer.</returns>
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)
-            => typeDefinitions.Where(type => !type.IsCompilerGeneratedOrIsInCompilerGeneratedClass() // exlude compiler-generated and their nested types
+            => typeDefinitions.Where(type => IsIncludedByDefault(type)
                 && (include == null || include.IsMatch(type.ReflectionName)) // applying optional whitelist filter
                 && (exclude == null || !exclude.IsMatch(type.ReflectionName))); // applying optional blacklist filter
 
-        internal string GetSourceAssemblyVersion()
-            => decompiler.TypeSystem.MainModule.PEFile.Metadata.GetAssemblyDefinition().Version.ToString();
+        /// <summary>The strategy for deciding whether a <paramref name="type"/> should be included
+        /// in the HTML diagrammer by default. Excludes compiler-generated and their nested types.</summary>
+        protected virtual bool IsIncludedByDefault(ITypeDefinition type)
+            => !type.IsCompilerGeneratedOrIsInCompilerGeneratedClass();
     }
 }
