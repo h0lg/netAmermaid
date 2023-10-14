@@ -35,7 +35,10 @@ namespace NetAmermaid
         /// open generic <see cref="CD.Type"/> (e.g. Store&lt;T>) like in <see cref="BuildRelationship(IType, string?)"/>.</summary>
         private (string id, IType? openGeneric) GetIdAndOpenGeneric(IType type)
         {
-            var openGeneric = type is ParameterizedType closed ? closed.GenericType : null;
+            // get open generic type if type is a closed generic (i.e. has type args none of which are parameters)
+            var openGeneric = type is ParameterizedType generic && !generic.TypeArguments.Any(a => a is ITypeParameter)
+                ? generic.GenericType : null;
+
             type = openGeneric ?? type; // reference open instead of closed generic type
             if (uniqueIds!.TryGetValue(type, out var uniqueId)) return (uniqueId, openGeneric); // types included by FilterTypes
 
