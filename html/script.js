@@ -266,18 +266,19 @@ const mermaidExtensions = (() => {
                 Why do we need that info? Knowing about the relationships between types, we can find the label
                 corresponding to a relation and attach XML documentation information to it, if available.
                 See how getRelationLabels is used. */
-            const interceptors = {
-                info: function (overridden, args) {
-                    // intercept message containing rendered edges
-                    if (args[2] === 'Graph in recursive render: XXX') renderedEdges = args[3].edges;
+            const requiredLevel = 2, // to enable intercepting info message
 
-                    // only foward to overridden method if this log level was originally enabled
-                    if (logLevel.isEnabled(2)) overridden.call(this, ...args);
-                }
-            };
+                interceptors = {
+                    info: function (overridden, args) {
+                        // intercept message containing rendered edges
+                        if (args[2] === 'Graph in recursive render: XXX') renderedEdges = args[3].edges;
+
+                        // only foward to overridden method if this log level was originally enabled
+                        if (logLevel.isEnabled(requiredLevel)) overridden.call(this, ...args);
+                    }
+                };
 
             logLevel.setRequested(config.logLevel); // remember original log level
-            const requiredLevel = 2; // to enable intercepting info message above
 
             // lower configured log level if required to guarantee above interceptor gets called
             if (!logLevel.isEnabled(requiredLevel)) config.logLevel = requiredLevel;
