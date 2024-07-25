@@ -30,7 +30,7 @@ namespace NetAmermaid
                 return isGeneric == true && selectedTypes!.Contains(elementType) ? (property, elementType) : default;
             }).Where(pair => pair != default).ToArray();
 
-        /// <summary>Returns the relevant direct super type <paramref name="type"/> inherits from
+        /// <summary>Returns the relevant direct super type the <paramref name="type"/> inherits from
         /// in a format matching <see cref="CD.Type.BaseType"/>.</summary>
         private Dictionary<string, string?>? GetBaseType(IType type)
         {

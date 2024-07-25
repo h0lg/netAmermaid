@@ -34,7 +34,7 @@ namespace NetAmermaid
         /// Implemented as a list of exact replacements instead of a single, more powerful RegEx because replacement in
         /// <see cref="XmlDocumentationFormatter.GetDoco(ICSharpCode.Decompiler.TypeSystem.IEntity)"/>
         /// happens on the unstructured string where matching and replacing the namespaces of referenced types, members and method parameters
-        /// using regexes would add a lot of complicated regex-heavy code for a rather unimportant feature.</summary>
+        /// using RegExes would add a lot of complicated RegEx-heavy code for a rather unimportant feature.</summary>
         [Option('n', "strip-namespaces", HelpText = "Space-separated namespace names that are removed for brevity from XML documentation comments." +
             " Note that the order matters: e.g. replace 'System.Collections' before 'System' to remove both of them completely.")]
         public IEnumerable<string>? StrippedNamespaces { get; set; }

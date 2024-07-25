@@ -12,7 +12,7 @@ namespace NetAmermaid
         /// <summary>Matches XML indent.</summary>
         protected const string linePadding = @"^[ \t]+|[ \t]+$";
 
-        /// <summary>Matches reference tags indluding "see href", "see cref" and "paramref name"
+        /// <summary>Matches reference tags including "see href", "see cref" and "paramref name"
         /// with the cref value being prefixed by symbol-specific letter and a colon
         /// including the quotes around the attribute value and the closing slash of the tag containing the attribute.</summary>
         protected const string referenceAttributes = @"(see\s.ref=""(.:)?)|(paramref\sname="")|(""\s/)";

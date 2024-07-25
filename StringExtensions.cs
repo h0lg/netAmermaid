@@ -7,7 +7,7 @@
         internal static string NormalizeHorizontalWhiteSpace(this string input, string normalizeTo = " ")
             => System.Text.RegularExpressions.Regex.Replace(input, @"[ \t]+", normalizeTo);
 
-        /// <summary>Replaces all occurances of <paramref name="oldValues"/> in
+        /// <summary>Replaces all occurrences of <paramref name="oldValues"/> in
         /// <paramref name="input"/> with <paramref name="newValue"/>.</summary>
         internal static string ReplaceAll(this string input, IEnumerable<string> oldValues, string? newValue)
             => oldValues.Aggregate(input, (aggregate, oldValue) => aggregate.Replace(oldValue, newValue));

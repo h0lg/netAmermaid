@@ -7,7 +7,7 @@ namespace NetAmermaid
     public partial class ClassDiagrammerFactory
     {
         /// <summary>Generates a dictionary of unique and short, but human readable identifiers for
-        /// <paramref name="types"/>to be able to safely reference them in any combination.</summary>
+        /// <paramref name="types"/> to be able to safely reference them in any combination.</summary>
         private static Dictionary<IType, string> GenerateUniqueIds(IEnumerable<ITypeDefinition> types)
         {
             Dictionary<IType, string> uniqueIds = new();
@@ -46,7 +46,7 @@ namespace NetAmermaid
             string? typeParams = type.TypeParameterCount == 0 ? null : ("_" + type.TypeParameters.Select(GetId).Join("_"));
 
             var id = SanitizeTypeName(type.FullName.Replace('.', '_'))
-                + typeParams; // to achive uniqueness for types with same FullName (i.e. generic overloads)
+                + typeParams; // to achieve uniqueness for types with same FullName (i.e. generic overloads)
 
             uniqueIds![type] = id; // update dictionary to avoid re-generation
             return (id, openGeneric);

@@ -22,7 +22,7 @@ along type relations using rapid diagramming.
   - [Advanced configuration examples](#advanced-configuration-examples)
     - [Filter extracted types](#filter-extracted-types)
     - [Strip namespaces from XML comments](#strip-namespaces-from-xml-comments)
-    - [Adjust for custom XML docucmentation file names](#adjust-for-custom-xml-docucmentation-file-names)
+    - [Adjust for custom XML documentation file names](#adjust-for-custom-xml-documentation-file-names)
 - [Tips for using the HTML diagrammer](#tips-for-using-the-html-diagrammer)
 - [Thanks to](#thanks-to)
 - [Disclaimer](#disclaimer)
@@ -74,7 +74,7 @@ The extracted type info is **structured into a model optimized for the HTML diag
 >
 > Note that you can
 > - **customize** the `template.html`, `script.js` and `styles.css` used in this process, e.g. for rewording or branding the UI.
-> - **build a stand-alone offline diagrammer** with *mermaid* baked in instead of loading it from a CDN. All you have to do is replace the `import` statetment for `/dist/mermaid.esm.min.mjs` at the top of `script.js` with the *contents* of [`/dist/mermaid.min.js`](https://unpkg.com/mermaid@latest/dist/mermaid.min.js) from the *mermaid* package of your choice.
+> - **build a stand-alone offline diagrammer** with *mermaid* baked in instead of loading it from a CDN. All you have to do is replace the `import` statement for `/dist/mermaid.esm.min.mjs` at the top of `script.js` with the *contents* of [`/dist/mermaid.min.js`](https://unpkg.com/mermaid@latest/dist/mermaid.min.js) from the *mermaid* package of your choice.
 
 In the final step, the **HTML diagrammer app re-assembles the type info** based on the in-app type selection and rendering options **to generate [mermaid class diagrams](https://mermaid.js.org/syntax/classDiagram.html)** with the types, their relations and as much inheritance detail as you need.
 
@@ -128,7 +128,7 @@ With this script in place, run it to (re-)generate the HTML diagrammer at your l
 ## Automatically
 
 If you want to deploy an up-to-date HTML diagrammer as part of your live documentation,
-you'll want to automate its regeneration to keep it in sync with your codebase.
+you'll want to automate its regeneration to keep it in sync with your code base.
 
 For example, you might like to share the diagrammer on a web server or - in general - with users
 who cannot or may not regenerate it; lacking either access to the netAmermaid console app or permission to use it.
@@ -187,11 +187,11 @@ Above examples show how the most important options are used. Let's have a quick 
 
 ### Filter extracted types
 
-Sometimes the source assembly contains way more types than are sensible to diagram. Types with metadata for validation or mapping for exmaple. Or auto-generated types.
+Sometimes the source assembly contains way more types than are sensible to diagram. Types with metadata for validation or mapping for example. Or auto-generated types.
 Especially if you want to tailor a diagrammer for a certain target audience and hide away most of the supporting type system to avoid noise and unnecessary questions.
 
 In these scenarios you can supply Regular Expressions for types to `--include` (white-list) and `--exclude` (black-list).
-A third option option `--report-excluded` will output a `.txt` containting the list of effectively excluded types next to the HTML diagrammer containing the effectively included types.
+A third option `--report-excluded` will output a `.txt` containing the list of effectively excluded types next to the HTML diagrammer containing the effectively included types.
 
 <pre>
 netAmermaid.exe <b>--include Your\.Models\..+ --exclude .+\+Metadata|.+\.Data\..+Map --report-excluded</b> --assembly ..\path\to\your\assembly.dll --output-folder .
@@ -201,7 +201,7 @@ This example
 - includes all types in the top-level namespace `Your.Models`
 - while excluding
   - nested types called `Metadata` and
-  - types ending in `Map` in a descendant `.Data.` namespaces.
+  - types ending in `Map` in descendant `.Data.` namespaces.
 
 ### Strip namespaces from XML comments
 
@@ -214,7 +214,7 @@ netAmermaid.exe <b>--strip-namespaces System.Collections.Generic System</b> --as
 Note how `System` is replaced **after** other namespaces starting with `System.` to achieve complete removal.
 Otherwise `System.Collections.Generic` wouldn't match the `Collections.Generic` left over after removing `System.`, resulting in partial removal only.
 
-### Adjust for custom XML docucmentation file names
+### Adjust for custom XML documentation file names
 
 If - for whatever reason - you have customized your XML documentation file output name, you can specify a custom path to pick it up from.
 
@@ -238,9 +238,9 @@ to select the type you want to use as a starting point for your diagram and **hi
 - The diagram has a **layout direction**, i.e. **rendering depends on the order of your selection**! Use [Alt] + [Arrow Up|Down] to sort selected types.
 - You can **zoom the rendered diagram** using [Ctrl + mouse wheel] and **grab and drag to pan** it. Reset zoom and pan with [Ctrl + 0].
 - Need more space? **Adjust the sidebar size** by grabbing and dragging its edge or **hide it completely** with [Ctrl + b] to zen out on the diagram alone.
-- You can **copy and save your diagrams** using [Ctrl + c] or [Ctrl + s] resptectively. The first time you try to quick-save will open the export options for you to choose the format.
+- You can **copy and save your diagrams** using [Ctrl + c] or [Ctrl + s] respectively. The first time you try to quick-save will open the export options for you to choose the format.
 - Showing off the diagrammer remotely? Enter **presentation mode** using [Ctrl + i] to **emphasize your mouse** pointer location, **visualize clicks** and **display pressed keys** for your audience to learn the commands while watching you.
-- **Look out for tooltips** to give you **more help** where necessary, like useful **key bindings** to help you get stuff done ASAP. You can also highlight all tooltipped elements with [Alt + i].
+- **Look out for tooltips** to give you **more help** where necessary, like useful **key bindings** to help you get stuff done ASAP. You can also highlight all tool-tipped elements with [Alt + i].
 
 # Thanks to
 
@@ -248,7 +248,7 @@ in the order they're used in netAmermaid's pipeline:
 
 - [Command Line Parser](https://github.com/commandlineparser/commandline) for parsing shell arguments and making validation and help text display easy.
 - [ILSpy](https://github.com/icsharpcode/ILSpy) for reliably retrieving type information from anything that runs with half a broken limb and a dozen broken references. You can have an assembly and a dream and it'll still figure out where to load the dependencies from. In .Net Framework version hell, that is nothing short of amazing.
-- [mermaid](https://github.com/mermaid-js/mermaid) for abstracting the capabilites of d3 to a degree that allows the rest of us to build useful stuff without hurting our smol brains more than necessary.
+- [mermaid](https://github.com/mermaid-js/mermaid) for abstracting the capabilities of d3 to a degree that allows the rest of us to build useful stuff without hurting our smol brains more than necessary.
 
 # Disclaimer
 

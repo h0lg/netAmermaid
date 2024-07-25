@@ -273,7 +273,7 @@ const mermaidExtensions = (() => {
                         // intercept message containing rendered edges
                         if (args[2] === 'Graph in recursive render: XXX') renderedEdges = args[3].edges;
 
-                        // only foward to overridden method if this log level was originally enabled
+                        // only forward to overridden method if this log level was originally enabled
                         if (logLevel.isEnabled(requiredLevel)) overridden.call(this, ...args);
                     }
                 };
@@ -292,14 +292,15 @@ const mermaidExtensions = (() => {
             detachInterceptors(); // to avoid intercepting messages outside of that context we're not interested in
         },
 
-        /**
-         * 
+        /** Processes the type selection into mermaid diagram syntax (and the corresponding XML documentation data, if available).
          * @param {object} typeDetails An object with the IDs of types to display in detail (i.e. with members) for keys
-         * and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values.
-         * @param {string} direction The layout direction of the resulting diagram
+         * and objects with the data structure of ClassDiagrammer.Type (excluding the Id) for values.
+         * @param {function} getTypeLabel A strategy for getting the type label for a type ID.
+         * @param {string} direction The layout direction of the resulting diagram.
          * @param {object} showInherited A regular expression matching things to exclude from the diagram definition.
-         * @returns
-         */
+         * @returns {object} An object like { diagram, detailedTypes, xmlDocs } with 'diagram' being the mermaid diagram syntax,
+         * 'xmlDocs' the corresponding XML documentation to be injected into the rendered diagram in the 'postProcess' step and
+         * 'detailedTypes' being a flat list of IDs of types that will be rendered in detail (including their members and relations). */
         processTypes: (typeDetails, getTypeLabel, direction, showInherited) => {
             const detailedTypes = Object.keys(typeDetails), // types that will be rendered including their members and relations
                 xmlDocs = {}, // to be appended with docs of selected types below
@@ -388,6 +389,13 @@ const mermaidExtensions = (() => {
 
         getDiagram: () => lastRenderedDiagram,
 
+        /** Enhances the SVG rendered by mermaid by injecting xmlDocs if available
+         * and attaching type click handlers, if available.
+         * @param {SVGElement} svg The SVG containing the rendered mermaid diagram.
+         * @param {object} options An object like { xmlDocs, onTypeClick }
+         * with 'xmlDocs' being the XML docs by type ID
+         * and 'onTypeClick' being an event listener for the click event
+         * that gets the event and the typeId as parameters. */
         postProcess: (svg, options) => {
             // matches 'MyClass2' from generated id attributes in the form of 'classId-MyClass2-0'
             const typeIdFromDomId = /(?<=classId-)\w+(?=-\d+)/;
@@ -395,7 +403,7 @@ const mermaidExtensions = (() => {
             for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
                 const typeId = typeIdFromDomId.exec(entity.id)[0];
 
-                // clone to have a modifyable collection without affecting the original
+                // clone to have a modifiable collection without affecting the original
                 const docs = structuredClone((options.xmlDocs || [])[typeId]);
 
                 // splice in XML documentation as label titles if available
@@ -566,7 +574,7 @@ const typeSelector = (() => {
         },
 
         /** Returns the types selected by the user in the form of an object with the type IDs for keys
-         *  and objects with the data structure of MermaidClassDiagrammer.Namespace.Type (excluding the Id) for values. */
+         *  and objects with the data structure of ClassDiagrammer.Type (excluding the Id) for values. */
         getSelected: () => Object.fromEntries([...select.selectedOptions].map(option => {
             const namespace = getNamespace(option), typeId = option.value,
                 details = model.TypesByNamespace[namespace][typeId];
@@ -679,7 +687,7 @@ const filterSidebar = (() => {
         const filterWidthOverride = getById('filter-width'), // a style tag dedicated to overriding the default filter max-width
             minWidth = 210, maxWidth = window.innerWidth / 2; // limit the width of the sidebar
 
-        let isDragging = false; // tracks whether the sidbar is being dragged
+        let isDragging = false; // tracks whether the sidebar is being dragged
         let pickedUp = 0; // remembers where the dragging started from
         let widthBefore = 0; // remembers the width when dragging starts
         let change = 0; // remembers the total distance of the drag
@@ -964,7 +972,7 @@ const exportOptions = (() => {
             const filterOpened = filterSidebar.open(),
                 optionsOpenend = open();
 
-            /* Make sure the collpases containing the save options are open and visible when user hits Ctrl + S.
+            /* Make sure the collapses containing the save options are open and visible when user hits Ctrl + S.
                 If neither needed opening, trigger saving. I.e. hitting Ctrl + S again should do it. */
             if (!filterOpened && !optionsOpenend) save(event);
             else event.preventDefault(); // prevent saving HTML page
@@ -977,7 +985,7 @@ const controlDisplay = (function () {
     let used = new Set(), enabled = false, wheelTimeout;
 
     const alt = 'Alt',
-        display = getById('pressed-keys'), // a label displaying the keys being pressed and mousewheel being scrolled
+        display = getById('pressed-keys'), // a label displaying the keys being pressed and mouse wheel being scrolled
         mouse = getById('mouse'), // a circle tracking the mouse to make following it easier
 
         translateKey = key => key.length === 1 ? key.toUpperCase() : key,

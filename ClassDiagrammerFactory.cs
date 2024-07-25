@@ -41,7 +41,7 @@ namespace NetAmermaid
                 include == null ? null : new(include, RegexOptions.Compiled),
                 exclude == null ? null : new(exclude, RegexOptions.Compiled)).ToArray();
 
-            // generate dict to read names from later
+            // generate dictionary to read names from later
             uniqueIds = GenerateUniqueIds(selectedTypes);
             labels = new();
             outsideReferences = new();

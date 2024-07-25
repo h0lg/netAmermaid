@@ -42,8 +42,8 @@ namespace NetAmermaid
             public Dictionary<string, string>? HasMany { get; set; }
         }
 
-        /// <summary>The mermaid class diagram definition, destructured relationship metadata and documentation for a
-        /// <see cref="System.Type"/> from the source assembly.</summary>
+        /// <summary>The mermaid class diagram definition, inheritance and relationships metadata
+        /// and XML documentation for a <see cref="System.Type"/> from the source assembly.</summary>
         [Serializable]
         public sealed class Type : Relationships
         {
@@ -58,7 +58,7 @@ namespace NetAmermaid
             /// Not guaranteed to be unique in the scope of the <see cref="ClassDiagrammer"/>.</summary>
             public string? Name { get; set; }
 
-            /// <summary>Contains the definition of the type and its own (uninherited) flat members
+            /// <summary>Contains the definition of the type and its own (not inherited) flat members
             /// in mermaid class diagram syntax, see https://mermaid.js.org/syntax/classDiagram.html .</summary>
             public string Body { get; set; } = null!;
 
