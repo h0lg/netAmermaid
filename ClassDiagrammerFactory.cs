@@ -68,8 +68,8 @@ namespace NetAmermaid
         /// <returns>The types to effectively include in the HTML diagrammer.</returns>
         protected virtual IEnumerable<ITypeDefinition> FilterTypes(IEnumerable<ITypeDefinition> typeDefinitions, Regex? include, Regex? exclude)
             => typeDefinitions.Where(type => IsIncludedByDefault(type)
-                && (include == null || include.IsMatch(type.ReflectionName)) // applying optional whitelist filter
-                && (exclude == null || !exclude.IsMatch(type.ReflectionName))); // applying optional blacklist filter
+                && (include?.IsMatch(type.ReflectionName) != false) // applying optional whitelist filter
+                && (exclude?.IsMatch(type.ReflectionName) != true)); // applying optional blacklist filter
 
         /// <summary>The strategy for deciding whether a <paramref name="type"/> should be included
         /// in the HTML diagrammer by default. Excludes compiler-generated and their nested types.</summary>

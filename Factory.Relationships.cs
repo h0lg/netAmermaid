@@ -24,7 +24,7 @@ namespace NetAmermaid
                         p => p.IsIndexer && !p.ReturnType.IsObject(),
                         GetMemberOptions.IgnoreInheritedMembers).ToArray(); // TODO mayb order by declaring type instead of filtering
 
-                    if (indexers.Length > 0) elementType = indexers.First().ReturnType;
+                    if (indexers.Length > 0) elementType = indexers[0].ReturnType;
                 }
 
                 return isGeneric == true && selectedTypes!.Contains(elementType) ? (property, elementType) : default;

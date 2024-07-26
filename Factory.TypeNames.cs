@@ -8,7 +8,7 @@ namespace NetAmermaid
         /// <summary>Returns a cached display name for <paramref name="type"/>.</summary>
         private string GetName(IType type)
         {
-            if (labels!.ContainsKey(type)) return labels[type]; // return cached value
+            if (labels!.TryGetValue(type, out string? value)) return value; // return cached value
             return labels[type] = GenerateName(type); // generate and cache new value
         }
 

@@ -55,19 +55,13 @@ namespace NetAmermaid
         }
 
         // see https://stackoverflow.com/a/16024302 for accessibility modifier flags
-        private char? GetAccessibility(Accessibility access)
+        private static char? GetAccessibility(Accessibility access) => access switch
         {
-            switch (access)
-            {
-                case Accessibility.Private: return '-';
-                case Accessibility.ProtectedAndInternal:
-                case Accessibility.Internal: return '~';
-                case Accessibility.Protected:
-                case Accessibility.ProtectedOrInternal: return '#';
-                case Accessibility.Public: return '+';
-                case Accessibility.None:
-                default: return default;
-            }
-        }
+            Accessibility.Private => '-',
+            Accessibility.ProtectedAndInternal or Accessibility.Internal => '~',
+            Accessibility.Protected or Accessibility.ProtectedOrInternal => '#',
+            Accessibility.Public => '+',
+            _ => default,
+        };
     }
 }
