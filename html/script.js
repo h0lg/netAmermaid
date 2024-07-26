@@ -1,5 +1,5 @@
 // see CDN example https://mermaid.js.org/intro/n00b-gettingStarted.html#_3-calling-the-javascript-api
-import mermaid from 'https://unpkg.com/mermaid@10.5.0/dist/mermaid.esm.min.mjs';
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/+esm';
 
 const getById = id => document.getElementById(id),
     triggerChangeOn = element => { element.dispatchEvent(new Event('change')); },
