@@ -914,6 +914,7 @@ const exportOptions = (() => {
 
     const getDimensions = (() => {
         const inputName = 'dimension',
+            scale = 'scale',
             dimensions = getById('dimensions'),
             scaleInputs = container.querySelectorAll('#scale-controls input');
 
@@ -924,7 +925,7 @@ const exportOptions = (() => {
 
         // enable toggling scale controls
         checkable.onChange(inputName, event => {
-            const disabled = event.target.value !== 'scale';
+            const disabled = event.target.value !== scale;
             for (let input of scaleInputs) input.disabled = disabled;
         }, container);
 
@@ -932,7 +933,7 @@ const exportOptions = (() => {
             let dimension = checkable.getValue(inputName);
 
             // return dimension to scale to desired size if not exporting in current size
-            if (dimension !== 'auto') dimension = checkable.getValue('scale');
+            if (dimension !== 'auto') dimension = checkable.getValue(scale);
 
             return [dimension, getById('scale-size').value];
         };
