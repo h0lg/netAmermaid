@@ -27,6 +27,9 @@
     <Content Include="html\template.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="html\node_modules\mermaid\dist\mermaid.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="html\script.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

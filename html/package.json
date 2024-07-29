@@ -3,5 +3,8 @@
     "eslint": "^8.57.0",
     "gulp": "^4.0.2",
     "gulp-less": "^5.0.0"
+  },
+  "dependencies": {
+    "mermaid": "^10.9.1"
   }
 }

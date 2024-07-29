@@ -54,24 +54,22 @@ namespace NetAmermaid
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
             string modelJson = SerializeModel(model);
             var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
-            var script = File.ReadAllText(Path.Combine(htmlSourcePath, "script.js"));
 
             var html = htmlTemplate
                 .Replace("{{sourceAssemblyName}}", model.SourceAssemblyName)
                 .Replace("{{sourceAssemblyVersion}}", model.SourceAssemblyVersion)
                 .Replace("{{builderVersion}}", AssemblyInfo.Version)
                 .Replace("{{repoUrl}}", RepoUrl)
-                .Replace("{{model}}", modelJson)
-                .Replace("{{script}}", script);
+                .Replace("{{model}}", modelJson);
 
             var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
 
             if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
             File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
 
-            // copy required resources to output folder
-            foreach (var resource in new[] { "styles.css", "netAmermaid.ico" })
-                File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, resource), overwrite: true);
+            // copy required resources to output folder while flattening paths
+            foreach (var resource in new[] { "styles.css", "netAmermaid.ico", @"node_modules\mermaid\dist\mermaid.min.js", "script.js" })
+                File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, Path.GetFileName(resource)), overwrite: true);
 
             Console.WriteLine("Successfully generated HTML diagrammer.");
 
