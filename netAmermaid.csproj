@@ -37,7 +37,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="ICSharpCode.Decompiler" Version="8.1.1.7464" />
+    <PackageReference Include="ICSharpCode.Decompiler" Version="8.2.0.7535" />
   </ItemGroup>
 
   <ItemGroup>
