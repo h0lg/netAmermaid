@@ -5,6 +5,8 @@
 /html/bin
 /html/obj
 /html/styles.css
+/html/model.json
+/html/mermaid.min.js
 *.user
 /Properties/launchSettings.json
 /.cr

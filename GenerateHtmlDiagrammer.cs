@@ -25,6 +25,11 @@ namespace NetAmermaid
         [Option('e', exclude, HelpText = "A regular expression matching Type.FullName used to blacklist types.")]
         public string? Exclude { get; set; }
 
+        [Option('j', "json-only", Hidden = true,
+            HelpText = "Whether to generate a model.json file instead of baking it into the HTML template." +
+            " This is useful for development of the template.html, script or styles.")]
+        public bool JsonOnly { get; set; }
+
         [Option('r', "report-excluded", HelpText = $"Outputs a report of types excluded from the {diagrammer}" +
             $" - whether by default because compiler-generated, explicitly by '--{exclude}' or implicitly by '--{include}'." +
             $" You may find this useful to develop and debug your regular expressions.")]

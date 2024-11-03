@@ -52,31 +52,50 @@ namespace NetAmermaid
         private void GenerateOutput(string assemblyPath, ClassDiagrammer model)
         {
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
+            const string mermaidJsPath = @"node_modules\mermaid\dist\mermaid.min.js";
             string modelJson = SerializeModel(model);
-            var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
 
-            var html = htmlTemplate
-                .Replace("{{sourceAssemblyName}}", model.SourceAssemblyName)
-                .Replace("{{sourceAssemblyVersion}}", model.SourceAssemblyVersion)
-                .Replace("{{builderVersion}}", AssemblyInfo.Version)
-                .Replace("{{repoUrl}}", RepoUrl)
-                .Replace("{{model}}", modelJson);
-
-            var outputFolder = OutputFolder ?? Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid");
+            var outputFolder = OutputFolder ??
+                /* If no out folder is specified and export mode is JsonOnly,
+                 * default to the HTML diagrammer source folder -  that's where it's most likely used.
+                 * Otherwise default to a "netAmermaid" folder next to the input assembly. */
+                (JsonOnly ? htmlSourcePath : Path.Combine(Path.GetDirectoryName(assemblyPath) ?? string.Empty, "netAmermaid"));
 
             if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-            File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
 
-            // copy required resources to output folder while flattening paths
-            foreach (var resource in new[] { "styles.css", "netAmermaid.ico", @"node_modules\mermaid\dist\mermaid.min.js", "script.js" })
-                File.Copy(Path.Combine(htmlSourcePath, resource), Path.Combine(outputFolder, Path.GetFileName(resource)), overwrite: true);
+            if (JsonOnly)
+            {
+                File.WriteAllText(Path.Combine(outputFolder, "model.json"), modelJson);
+                CopyResources(mermaidJsPath);
+                Console.WriteLine("Successfully generated model.json for HTML diagrammer.");
+            }
+            else
+            {
+                var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
 
-            Console.WriteLine("Successfully generated HTML diagrammer.");
+                var html = htmlTemplate
+                    .Replace("{{sourceAssemblyName}}", model.SourceAssemblyName)
+                    .Replace("{{sourceAssemblyVersion}}", model.SourceAssemblyVersion)
+                    .Replace("{{builderVersion}}", AssemblyInfo.Version)
+                    .Replace("{{repoUrl}}", RepoUrl)
+                    .Replace("{{model}}", modelJson);
+
+                File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
+                CopyResources("styles.css", "netAmermaid.ico", mermaidJsPath, "script.js");
+                Console.WriteLine("Successfully generated HTML diagrammer.");
+            }
 
             if (ReportExludedTypes)
             {
                 string excludedTypes = model.Excluded.Join(Environment.NewLine);
                 File.WriteAllText(Path.Combine(outputFolder, "excluded types.txt"), excludedTypes);
+            }
+
+            // copy required resources to output folder while flattening paths
+            void CopyResources(params string[] pathsRelativeToHtmlSource)
+            {
+                foreach (var path in pathsRelativeToHtmlSource)
+                    File.Copy(Path.Combine(htmlSourcePath, path), Path.Combine(outputFolder, Path.GetFileName(path)), overwrite: true);
             }
         }
 
