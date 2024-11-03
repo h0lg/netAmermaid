@@ -1,6 +1,3 @@
-/// <binding BeforeBuild='less' />
-// Above line allows Visual Studio to trigger the 'less' task before building the project.
-
 const gulp = require('gulp');
 const less = require('gulp-less');
 const fs = require('fs');

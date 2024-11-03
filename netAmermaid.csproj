@@ -40,11 +40,9 @@
     <PackageReference Include="ICSharpCode.Decompiler" Version="8.2.0.7535" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="html\html.njsproj">
-      <ReferenceOutputAssembly>False</ReferenceOutputAssembly>
-    </ProjectReference>
-  </ItemGroup>
+  <Target Name="RunGulpLess" BeforeTargets="Build">
+    <Exec Command="%appdata%\\npm\\gulp.cmd transpileLess" WorkingDirectory="$(ProjectDir)\\html" />
+  </Target>
 
   <!-- appends git commit hash to assembly informational version; from https://stackoverflow.com/a/45248069
     see also https://andrewlock.net/version-vs-versionsuffix-vs-packageversion-what-do-they-all-mean/ -->
