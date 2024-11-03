@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>{{sourceAssemblyName}} class diagrammer - netAmermaid</title>
+    <title>{{SourceAssemblyName}} class diagrammer - netAmermaid</title>
     <link rel="icon" type="image/x-icon" href="netAmermaid.ico" />
     <link rel="stylesheet" href="styles.css" type="text/css" />
     <style id="filter-width"></style>
@@ -109,7 +109,7 @@
             <div id="exportOptions" class="scndry vertical collapse aligned spaced flx gap col">
 
                 <div class="flx gap" title="Note that you can also use your browser's Print function [Ctrl + P] to export to PDF or paper or split up the diagram into multiple pages.">
-                    <button type="button" id="save" data-assembly="{{sourceAssemblyName}}" title="[Ctrl + S] Saves the diagram in the selected format using a generated name.">💾 Save</button>
+                    <button type="button" id="save" data-assembly="{{SourceAssemblyName}}" title="[Ctrl + S] Saves the diagram in the selected format using a generated name.">💾 Save</button>
                     <label>or</label>
                     <button type="button" id="copy" title="[Ctrl + C] Copies the diagram in the selected format to your clipboard for you to paste directly into a messenger, word- or image processor.">📋 Copy to clipboard</button>
                 </div>
@@ -166,13 +166,13 @@
         <div id="toaster" class="flx col gap"></div>
         <div class="build-info flx">
             <div id="build-info" class="scndry horizontal collapse flx col">
-                <span>built from {{sourceAssemblyName}} v{{sourceAssemblyVersion}}</span>
+                <span>built from {{SourceAssemblyName}} v{{SourceAssemblyVersion}}</span>
                 <span>
-                    using <a class="project" target="_blank" href="{{repoUrl}}#readme" title="🤿 get learned and find out about or 🔱 fork the project">netAmermaid</a> v{{builderVersion}}
-                    <a target="_blank" href="{{repoUrl}}/tree/v{{builderVersion}}#readme" title="the manual for v{{builderVersion}}">📜</a>
-                    <a target="_blank" href="{{repoUrl}}/discussions" title="🤔 ask questions, share and discuss 💡 ideas">💬</a>
-                    <a target="_blank" href="{{repoUrl}}/issues" title="🦟 feed bugs to the fishes and request 🌱 new features"><span class="mano-a-borsa"></span></a>
-                    <a target="_blank" href="{{repoUrl}}/releases/latest" title="☄️ download the latest bits to 🌊 generate better diagrammers">🌩️</a>
+                    using <a class="project" target="_blank" href="{{RepoUrl}}#readme" title="🤿 get learned and find out about or 🔱 fork the project">netAmermaid</a> v{{BuilderVersion}}
+                    <a target="_blank" href="{{RepoUrl}}/tree/v{{BuilderVersion}}#readme" title="the manual for v{{BuilderVersion}}">📜</a>
+                    <a target="_blank" href="{{RepoUrl}}/discussions" title="🤔 ask questions, share and discuss 💡 ideas">💬</a>
+                    <a target="_blank" href="{{RepoUrl}}/issues" title="🦟 feed bugs to the fishes and request 🌱 new features"><span class="mano-a-borsa"></span></a>
+                    <a target="_blank" href="{{RepoUrl}}/releases/latest" title="☄️ download the latest bits to 🌊 generate better diagrammers">🌩️</a>
                 </span>
             </div>
             <img data-toggles="#build-info" src="netAmermaid.ico" />
@@ -182,7 +182,7 @@
     <div id="pressed-keys" class="hidden"></div>
     <div id="mouse" hidden></div>
 
-    <script id="model" type="application/json">{{model}}</script>
+    <script id="model" type="application/json">{{Model}}</script>
     <script src="mermaid.min.js"></script>
     <script src="script.js"></script>
 </body>

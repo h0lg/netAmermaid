@@ -29,9 +29,9 @@ namespace NetAmermaid
         protected virtual ClassDiagrammer BuildModel(string assemblyPath, XmlDocumentationFormatter? xmlDocs)
             => new ClassDiagrammerFactory(xmlDocs).BuildModel(assemblyPath, Include, Exclude);
 
-        private static string SerializeModel(ClassDiagrammer diagrammer)
+        private string SerializeModel(ClassDiagrammer diagrammer)
         {
-            var jsonModel = new
+            object jsonModel = new
             {
                 diagrammer.OutsideReferences,
 
@@ -41,13 +41,27 @@ namespace NetAmermaid
                     ns => ns.Value.ToDictionary(t => t.Id, t => t))
             };
 
-            return JsonSerializer.Serialize(jsonModel, new JsonSerializerOptions
+            // wrap model including the data required for doing the template replacement in a JS build task
+            if (JsonOnly) jsonModel = new
+            {
+                diagrammer.SourceAssemblyName,
+                diagrammer.SourceAssemblyVersion,
+                BuilderVersion = AssemblyInfo.Version,
+                RepoUrl,
+                // pre-serialize to a string so that we don't have to re-serialize it in the JS build task
+                Model = Serialize(jsonModel)
+            };
+
+            return Serialize(jsonModel);
+        }
+
+        private static string Serialize(object json)
+            => JsonSerializer.Serialize(json, new JsonSerializerOptions
             {
                 WriteIndented = true,
                 // avoid outputting null properties unnecessarily
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             });
-        }
 
         private void GenerateOutput(string assemblyPath, ClassDiagrammer model)
         {
@@ -74,11 +88,11 @@ namespace NetAmermaid
                 var htmlTemplate = File.ReadAllText(Path.Combine(htmlSourcePath, "template.html"));
 
                 var html = htmlTemplate
-                    .Replace("{{sourceAssemblyName}}", model.SourceAssemblyName)
-                    .Replace("{{sourceAssemblyVersion}}", model.SourceAssemblyVersion)
-                    .Replace("{{builderVersion}}", AssemblyInfo.Version)
-                    .Replace("{{repoUrl}}", RepoUrl)
-                    .Replace("{{model}}", modelJson);
+                    .Replace("{{SourceAssemblyName}}", model.SourceAssemblyName)
+                    .Replace("{{SourceAssemblyVersion}}", model.SourceAssemblyVersion)
+                    .Replace("{{BuilderVersion}}", AssemblyInfo.Version)
+                    .Replace("{{RepoUrl}}", RepoUrl)
+                    .Replace("{{Model}}", modelJson);
 
                 File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
                 CopyResources("styles.css", "netAmermaid.ico", mermaidJsPath, "script.js");
