@@ -35,7 +35,8 @@ namespace NetAmermaid
         public CD BuildModel(string assemblyPath, string? include, string? exclude)
         {
             CSharpDecompiler decompiler = new(assemblyPath, decompilerSettings);
-            IEnumerable<ITypeDefinition> allTypes = decompiler.TypeSystem.MainModule.TypeDefinitions;
+            MetadataModule mainModule = decompiler.TypeSystem.MainModule;
+            IEnumerable<ITypeDefinition> allTypes = mainModule.TypeDefinitions;
 
             selectedTypes = FilterTypes(allTypes,
                 include == null ? null : new(include, RegexOptions.Compiled),
@@ -49,7 +50,6 @@ namespace NetAmermaid
             Dictionary<string, CD.Type[]> typesByNamespace = selectedTypes.GroupBy(t => t.Namespace).OrderBy(g => g.Key).ToDictionary(g => g.Key,
                 ns => ns.OrderBy(t => t.FullName).Select(type => type.Kind == TypeKind.Enum ? BuildEnum(type) : BuildType(type)).ToArray());
 
-            MetadataModule mainModule = decompiler.TypeSystem.MainModule;
             string[] excluded = allTypes.Except(selectedTypes).Select(t => t.ReflectionName).ToArray();
 
             return new CD
