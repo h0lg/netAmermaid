@@ -1,7 +1,6 @@
 /// <binding BeforeBuild='less' />
 // Above line allows Visual Studio to trigger the 'less' task before building the project.
 
-// Automate transpilation of .less files, see https://code.visualstudio.com/Docs/languages/CSS#_automating-sassless-compilation
 var gulp = require('gulp');
 var less = require('gulp-less');
 var fs = require('fs');
@@ -57,12 +56,13 @@ gulp.task('fill-template-html', function (done) {
     });
 });
 
-// the default task that runs when Gulp is executed without any specific task name
+/*  Run individual build tasks first, then start watching for changes
+    see https://code.visualstudio.com/Docs/languages/CSS#_automating-sassless-compilation */
 gulp.task(
-    'default',
-    // Run the 'less' task first, then start watching for changes
-    gulp.series('less', function (done) {
-        gulp.watch('*.less', gulp.series('less'));  // Watch for any changes in .less files and rerun the 'less' task
+    'rebuild-on-change',
+        // Watch for changes in source files and rerun the corresponding build task
+        gulp.watch('styles.less', gulp.series('less'));
+        gulp.watch(['template.html', 'model.json'], gulp.series('fill-template-html'));
         done(); // signal task completion
     })
 );

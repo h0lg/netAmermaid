@@ -37,6 +37,15 @@
             "problemMatcher": [
                 "$gulp-tsc"
             ]
+        },
+        {
+            "label": "Auto-rebuild on change",
+            "detail": "run build tasks automatically when source files change",
+            "type": "gulp",
+            "task": "rebuild-on-change",
+            "problemMatcher": [
+                "$gulp-tsc"
+            ]
         }
     ]
 }
