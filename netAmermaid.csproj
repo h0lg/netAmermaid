@@ -41,6 +41,8 @@
   </ItemGroup>
 
   <Target Name="RunGulpLess" BeforeTargets="Build">
+    <!--  TODO the Command should probably be something like the following, but that doesn't work:
+          "$(ProjectDir)\\html\\node_modules\\.bin\\gulp.cmd transpileLess" -->
     <Exec Command="%appdata%\\npm\\gulp.cmd transpileLess" WorkingDirectory="$(ProjectDir)\\html" />
   </Target>
 
