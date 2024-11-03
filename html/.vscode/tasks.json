@@ -17,6 +17,16 @@
                 "}"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "Transpile .less",
+            "detail": "into .css files",
+            "group": "build",
+            "type": "gulp",
+            "task": "less",
+            "problemMatcher": [
+                "$lessc"
+            ]
         }
     ]
 }
