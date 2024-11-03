@@ -27,6 +27,16 @@
             "problemMatcher": [
                 "$lessc"
             ]
+        },
+        {
+            "label": "Generate HTML diagrammer",
+            "detail": "from the template.html and a model.json",
+            "group": "build",
+            "type": "gulp",
+            "task": "fill-template-html",
+            "problemMatcher": [
+                "$gulp-tsc"
+            ]
         }
     ]
 }
