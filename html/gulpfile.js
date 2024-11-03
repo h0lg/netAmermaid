@@ -1,20 +1,20 @@
 /// <binding BeforeBuild='less' />
 // Above line allows Visual Studio to trigger the 'less' task before building the project.
 
-var gulp = require('gulp');
-var less = require('gulp-less');
-var fs = require('fs');
+const gulp = require('gulp');
+const less = require('gulp-less');
+const fs = require('fs');
 
-gulp.task('less', function (done) {
+function transpileLess (done) {
     gulp
         .src('styles.less') // source file(s) to process
         .pipe(less()) // pass them through the LESS compiler
         .pipe(gulp.dest(f => f.base)); // Use the base directory of the source file for output
 
     done(); // signal task completion
-});
+}
 
-gulp.task('fill-template-html', function (done) {
+function generateHtmlDiagrammer (done) {
     // Read and parse model.json
     fs.readFile('model.json', 'utf8', function (err, data) {
         if (err) {
@@ -54,15 +54,16 @@ gulp.task('fill-template-html', function (done) {
             });
         });
     });
-});
+}
+
+exports.transpileLess = transpileLess;
+exports.generateHtmlDiagrammer = generateHtmlDiagrammer;
 
 /*  Run individual build tasks first, then start watching for changes
     see https://code.visualstudio.com/Docs/languages/CSS#_automating-sassless-compilation */
-gulp.task(
-    'rebuild-on-change',
-        // Watch for changes in source files and rerun the corresponding build task
-        gulp.watch('styles.less', gulp.series('less'));
-        gulp.watch(['template.html', 'model.json'], gulp.series('fill-template-html'));
-        done(); // signal task completion
-    })
-);
+exports.autoRebuildOnChange = gulp.series(transpileLess, generateHtmlDiagrammer, function (done) {
+    // Watch for changes in source files and rerun the corresponding build task
+    gulp.watch('styles.less', gulp.series(transpileLess));
+    gulp.watch(['template.html', 'model.json'], gulp.series(generateHtmlDiagrammer));
+    done(); // signal task completion
+});

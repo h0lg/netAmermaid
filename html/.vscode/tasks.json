@@ -23,7 +23,7 @@
             "detail": "into .css files",
             "group": "build",
             "type": "gulp",
-            "task": "less",
+            "task": "transpileLess",
             "problemMatcher": [
                 "$lessc"
             ]
@@ -33,7 +33,7 @@
             "detail": "from the template.html and a model.json",
             "group": "build",
             "type": "gulp",
-            "task": "fill-template-html",
+            "task": "generateHtmlDiagrammer",
             "problemMatcher": [
                 "$gulp-tsc"
             ]
@@ -42,7 +42,7 @@
             "label": "Auto-rebuild on change",
             "detail": "run build tasks automatically when source files change",
             "type": "gulp",
-            "task": "rebuild-on-change",
+            "task": "autoRebuildOnChange",
             "problemMatcher": [
                 "$gulp-tsc"
             ]
