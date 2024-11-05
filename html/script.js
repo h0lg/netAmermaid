@@ -408,7 +408,7 @@
                     // splice in XML documentation as label titles if available
                     if (docs) {
                         const typeKey = '', nodeLabel = 'span.nodeLabel',
-                            title = entity.querySelector('.classTitle'),
+                            title = entity.querySelector('.label-group'),
                             relationLabels = getRelationLabels(svg, typeId),
 
                             setDocs = (label, member) => {
