@@ -66,7 +66,6 @@ namespace NetAmermaid
         private void GenerateOutput(string assemblyPath, ClassDiagrammer model)
         {
             var htmlSourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "html");
-            const string mermaidJsPath = @"node_modules\mermaid\dist\mermaid.min.js";
             string modelJson = SerializeModel(model);
 
             var outputFolder = OutputFolder ??
@@ -80,7 +79,6 @@ namespace NetAmermaid
             if (JsonOnly)
             {
                 File.WriteAllText(Path.Combine(outputFolder, "model.json"), modelJson);
-                CopyResources(mermaidJsPath);
                 Console.WriteLine("Successfully generated model.json for HTML diagrammer.");
             }
             else
@@ -95,7 +93,11 @@ namespace NetAmermaid
                     .Replace("{{Model}}", modelJson);
 
                 File.WriteAllText(Path.Combine(outputFolder, "class-diagrammer.html"), html);
-                CopyResources("styles.css", "netAmermaid.ico", mermaidJsPath, "script.js");
+
+                // copy required resources to output folder while flattening paths if required
+                foreach (var path in new[] { "styles.css", "netAmermaid.ico", "script.js" })
+                    File.Copy(Path.Combine(htmlSourcePath, path), Path.Combine(outputFolder, Path.GetFileName(path)), overwrite: true);
+
                 Console.WriteLine("Successfully generated HTML diagrammer.");
             }
 
@@ -103,13 +105,6 @@ namespace NetAmermaid
             {
                 string excludedTypes = model.Excluded.Join(Environment.NewLine);
                 File.WriteAllText(Path.Combine(outputFolder, "excluded types.txt"), excludedTypes);
-            }
-
-            // copy required resources to output folder while flattening paths
-            void CopyResources(params string[] pathsRelativeToHtmlSource)
-            {
-                foreach (var path in pathsRelativeToHtmlSource)
-                    File.Copy(Path.Combine(htmlSourcePath, path), Path.Combine(outputFolder, Path.GetFileName(path)), overwrite: true);
             }
         }
 
