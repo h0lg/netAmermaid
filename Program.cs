@@ -25,7 +25,7 @@ try
     parserResult.WithNotParsed(errors => Console.WriteLine(HelpText.AutoBuild(parserResult, h =>
     {
         h.Heading = asciiHeading + h.Heading; // enhance heading for branding
-        Environment.ExitCode = (int)ExitCodes.Error;
+        Environment.ExitCode = (int)ExitCodes.ValidationError;
 
         // see https://learn.microsoft.com/en-us/dotnet/api/system.console.windowwidth?view=net-8.0#remarks
         if (!Console.IsOutputRedirected) h.MaximumDisplayWidth = Console.WindowWidth;
@@ -40,8 +40,4 @@ catch (Exception ex)
     Environment.ExitCode = (int)ExitCodes.Error;
 }
 
-public enum ExitCodes
-{
-    Error = -1,
-    Success = 0
-}
+public enum ExitCodes { Success = 0, Error = 1, ValidationError = 2 }
