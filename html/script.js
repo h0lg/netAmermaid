@@ -399,7 +399,7 @@
                 // matches 'MyClass2' from generated id attributes in the form of 'classId-MyClass2-0'
                 const typeIdFromDomId = /(?<=classId-)\w+(?=-\d+)/;
 
-                for (let entity of svg.querySelectorAll('g.nodes>g').values()) {
+                for (let entity of svg.querySelectorAll('g.nodes>g.node').values()) {
                     const typeId = typeIdFromDomId.exec(entity.id)[0];
 
                     // clone to have a modifiable collection without affecting the original
