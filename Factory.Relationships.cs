@@ -57,6 +57,8 @@ namespace NetAmermaid
                 IType type = p.ReturnType;
                 string label = p.Name;
 
+                if (p.IsIndexer) label += $"[{p.Parameters.Single().Type.Name} {p.Parameters.Single().Name}]";
+
                 if (type.TryGetNullableType(out var typeArg))
                 {
                     type = typeArg;
