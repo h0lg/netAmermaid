@@ -73,7 +73,7 @@ namespace NetAmermaid
 
             /// <summary>Interfaces directly implemented by this type, with their <see cref="Id"/> as keys
             /// and their (optional) differing display names as values.</summary>
-            public Dictionary<string, string?>? Interfaces { get; set; }
+            public Dictionary<string, string?[]>? Interfaces { get; set; }
 
             /// <summary>Contains inherited members by the <see cref="Id"/> of their <see cref="IMember.DeclaringType"/>
             /// for the consumer to choose which of them to display in an inheritance scenario.</summary>

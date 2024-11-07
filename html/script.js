@@ -367,8 +367,9 @@
                             renderSuperType(baseTypeId, '--', typeId, label, showInherited.types);
 
                     if (details.Interfaces) // expecting object; only process if not null or undefined
-                        for (let [ifaceId, label] of Object.entries(details.Interfaces))
-                            renderSuperType(ifaceId, '..', typeId, label, showInherited.interfaces);
+                        for (let [ifaceId, labels] of Object.entries(details.Interfaces))
+                            for (let label of labels)
+                                renderSuperType(ifaceId, '..', typeId, label, showInherited.interfaces);
 
                     renderRelations(typeId, details.HasOne);
                     renderRelations(typeId, details.HasMany, true);

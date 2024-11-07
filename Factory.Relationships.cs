@@ -40,10 +40,13 @@ namespace NetAmermaid
 
         /// <summary>Returns the direct interfaces implemented by <paramref name="type"/>
         /// in a format matching <see cref="CD.Type.Interfaces"/>.</summary>
-        private Dictionary<string, string?>? GetInterfaces(ITypeDefinition type)
+        private Dictionary<string, string?[]>? GetInterfaces(ITypeDefinition type)
         {
             var interfaces = type.DirectBaseTypes.Where(t => t.IsInterface()).ToArray();
-            return interfaces.Length == 0 ? null : interfaces.Select(i => BuildRelationship(i)).ToDictionary(r => r.to, r => r.label);
+
+            return interfaces.Length == 0 ? null
+                : interfaces.Select(i => BuildRelationship(i)).GroupBy(r => r.to)
+                    .ToDictionary(g => g.Key, g => g.Select(r => r.label).ToArray());
         }
 
         /// <summary>Returns the one-to-one relations from <paramref name="type"/> to other <see cref="CD.Type"/>s
